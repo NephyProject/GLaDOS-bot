@@ -12,9 +12,9 @@ import jp.nephy.glados.component.audio.AudioRecorder
 import jp.nephy.glados.component.audio.ConnectionListenerImpl
 import jp.nephy.glados.component.audio.music.adapter.EventMessage
 import jp.nephy.glados.component.audio.music.adapter.TrackControls
-import jp.nephy.glados.component.helper.sumBy
 import jp.nephy.glados.component.helper.toMilliSecondString
 import jp.nephy.glados.logger
+import jp.nephy.utils.sumBy
 import net.dv8tion.jda.core.entities.Guild
 import net.dv8tion.jda.core.entities.VoiceChannel
 

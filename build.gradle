@@ -28,7 +28,7 @@ dependencies {
 
     /* Discord */
     compile "com.jagrosh:jda-utilities:2.1"
-    compile "net.dv8tion:JDA:3.6.0_359"
+    compile "net.dv8tion:JDA:3.6.0_363"
     compile "com.sedmelluq:lavaplayer:1.2.63"
     compile "com.sedmelluq:jda-nas:1.0.5"
 
@@ -37,12 +37,7 @@ dependencies {
 
     /* Google */
     compile "com.google.cloud:google-cloud:0.39.0-alpha"
-    compile("com.google.apis:google-api-services-youtube:v3-rev193-1.23.0") {
-        exclude group: "com.google.api-client"
-    }
-    compile("com.google.api-client:google-api-client:1.23.0") {
-        exclude group: "com.google.guava"
-    }
+    compile("com.google.apis:google-api-services-youtube:v3-rev193-1.23.0")
 
     /* Steam */
     compile "com.lukaspradel:steam-web-api:1.2"
@@ -52,17 +47,9 @@ dependencies {
     compile "org.jetbrains.kotlin:kotlin-compiler:$kotlin_version"
 
     /* Misc */
-    compile "jp.nephy:jsonkt:1.4"
+    compile "jp.nephy:common-utils:1.0.2"
     compile "org.jsoup:jsoup:1.11.2"
     compile "com.rometools:rome:1.9.0"
-    compile "org.litote.kmongo:kmongo-native:3.6.3"
-
-    /* Logging */
-    compile "io.github.microutils:kotlin-logging:1.4.9"
-    compile "ch.qos.logback:logback-core:1.2.3"
-    compile "ch.qos.logback:logback-classic:1.2.3"
-    compile "net.gpedro.integrations.slack:slack-webhook:1.4.0"
-    compile "org.fusesource.jansi:jansi:1.17.1"
 }
 
 compileKotlin {

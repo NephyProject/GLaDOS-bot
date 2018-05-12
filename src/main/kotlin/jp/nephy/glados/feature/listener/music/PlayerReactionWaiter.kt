@@ -6,6 +6,7 @@ import jp.nephy.glados.feature.ListenerFeature
 import jp.nephy.glados.feature.command.Nico
 import jp.nephy.glados.feature.command.Queue
 import jp.nephy.glados.feature.command.SoundCloud
+import jp.nephy.utils.round
 import net.dv8tion.jda.core.Permission
 import net.dv8tion.jda.core.events.message.guild.react.GuildMessageReactionAddEvent
 import java.util.concurrent.TimeUnit
@@ -124,7 +125,7 @@ class PlayerReactionWaiter: ListenerFeature() {
                             event.channel.embedMention(event.member) {
                                 title("スキップ投票が可決したので 現在の曲をスキップしました。")
                                 descriptionBuilder {
-                                    appendln("${voteCount}票(${rate.times(100).roundToInt()}%)が集まりました。")
+                                    appendln("${voteCount}票(${rate.times(100).round(1)}%)が集まりました。")
                                     append("(Botは除外しています)")
                                 }
                                 color(Color.Good)
@@ -261,7 +262,7 @@ class PlayerReactionWaiter: ListenerFeature() {
                         event.channel.embedMention(event.member) {
                             title("再生キューのクリア投票が可決したので 再生キューをクリアしました。")
                             descriptionBuilder {
-                                appendln("${voteCount}票(${rate.times(100).roundToInt()}%)が集まりました。")
+                                appendln("${voteCount}票(${rate.times(100).round(1)}%)が集まりました。")
                                 append("(Botは除外しています)")
                             }
                             color(Color.Good)

@@ -9,6 +9,7 @@ import jp.nephy.glados.component.audio.music.*
 import jp.nephy.glados.component.helper.*
 import jp.nephy.glados.feature.CommandFeature
 import jp.nephy.glados.logger
+import jp.nephy.utils.characterLength
 import java.util.concurrent.TimeUnit
 
 
@@ -67,7 +68,7 @@ class Play: CommandFeature() {
                             author("プレイリストが見つかりました")
                             title("プレイリスト \"${playlist.name}\" (${playlist.tracks.size}曲, ${playlist.tracks.totalDuration.toMilliSecondString()}) を再生キューに追加します")
                             playlist.tracks.take(20).forEachIndexed { i, audioTrack ->
-                                field("#${(i + 1).toString().padEnd(playlist.tracks.size.charLength)}") { audioTrack.info.effectiveTitle }
+                                field("#${(i + 1).toString().padEnd(playlist.tracks.size.characterLength)}") { audioTrack.info.effectiveTitle }
                             }
                             if (playlist.tracks.size > 20) {
                                 field("...") { "#21以降のトラックは省略されました。" }

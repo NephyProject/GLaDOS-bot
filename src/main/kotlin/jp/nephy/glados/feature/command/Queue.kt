@@ -2,8 +2,13 @@ package jp.nephy.glados.feature.command
 
 import com.jagrosh.jdautilities.command.CommandEvent
 import jp.nephy.glados.component.audio.music.*
-import jp.nephy.glados.component.helper.*
+import jp.nephy.glados.component.helper.Color
+import jp.nephy.glados.component.helper.deleteQueue
+import jp.nephy.glados.component.helper.embedMention
+import jp.nephy.glados.component.helper.toMilliSecondString
 import jp.nephy.glados.feature.CommandFeature
+import jp.nephy.utils.characterLength
+import jp.nephy.utils.sumBy
 import net.dv8tion.jda.core.entities.Member
 import net.dv8tion.jda.core.entities.TextChannel
 import net.dv8tion.jda.core.requests.restaction.MessageAction
@@ -50,7 +55,7 @@ class Queue: CommandFeature() {
                     "総トラック数: ${queue.size}, 総再生時間: ${queue.sumBy { it.duration }.toMilliSecondString()}"
                 }
                 queue.take(20).forEachIndexed { i, it ->
-                    field("#${(i + 1).toString().padEnd(queue.size.charLength)}: ${it.info.effectiveTitle}") {
+                    field("#${(i + 1).toString().padEnd(queue.size.characterLength)}: ${it.info.effectiveTitle}") {
                         "長さ: ${it.duration.toMilliSecondString()} / 再生までおよそ ${ms.toMilliSecondString()}"
                     }
                     ms += it.duration

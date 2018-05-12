@@ -1,7 +1,11 @@
 package jp.nephy.glados.component.helper.prompt
 
 import jp.nephy.glados.GLaDOS
-import jp.nephy.glados.component.helper.*
+import jp.nephy.glados.component.helper.Color
+import jp.nephy.glados.component.helper.deleteQueue
+import jp.nephy.glados.component.helper.embedMention
+import jp.nephy.glados.component.helper.wait
+import jp.nephy.utils.joinToStringIndexed
 import net.dv8tion.jda.core.entities.Member
 import net.dv8tion.jda.core.entities.Message
 import net.dv8tion.jda.core.entities.TextChannel

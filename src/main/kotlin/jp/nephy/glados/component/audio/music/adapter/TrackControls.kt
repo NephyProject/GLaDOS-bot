@@ -7,9 +7,9 @@ import com.sedmelluq.discord.lavaplayer.track.AudioTrackEndReason
 import jp.nephy.glados.GLaDOS
 import jp.nephy.glados.component.audio.music.*
 import jp.nephy.glados.component.helper.isNoOneExceptSelf
-import jp.nephy.glados.component.helper.removeAtOrNull
-import jp.nephy.glados.component.helper.sumBy
 import jp.nephy.glados.logger
+import jp.nephy.utils.removeAtOrNull
+import jp.nephy.utils.sumBy
 
 
 class TrackControls(private val guildPlayer: GuildPlayer, private val player: AudioPlayer): AudioEventAdapter() {

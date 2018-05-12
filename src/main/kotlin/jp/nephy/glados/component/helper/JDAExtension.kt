@@ -24,8 +24,6 @@ val Member.fullNameWithoutGuild: String
 
 val VoiceChannel.isNoOneExceptSelf: Boolean
     get() = members.count { ! it.user.isSelf } == 0
-val List<User>.isNoOneExceptSelf: Boolean
-    get() = count { ! it.isSelf } == 0
 
 fun Member.hasRole(id: Long): Boolean {
     return roles.any { it.idLong == id }

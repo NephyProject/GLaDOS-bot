@@ -8,6 +8,7 @@ import jp.nephy.glados.component.helper.*
 import jp.nephy.glados.component.helper.prompt.YesNoEmoji
 import jp.nephy.glados.feature.ListenerFeature
 import jp.nephy.glados.logger
+import jp.nephy.utils.characterLength
 import net.dv8tion.jda.core.events.message.guild.GuildMessageReceivedEvent
 import java.util.concurrent.TimeUnit
 
@@ -67,7 +68,7 @@ class FindVideoURL: ListenerFeature() {
                                             }
 
                                             playlist.tracks.forEachIndexed { i, audioTrack ->
-                                                field("\n#${(i + 1).toString().padEnd(playlist.tracks.size.charLength)}") { audioTrack.info.effectiveTitle }
+                                                field("\n#${(i + 1).toString().padEnd(playlist.tracks.size.characterLength)}") { audioTrack.info.effectiveTitle }
                                             }
                                             color(Color.Good)
                                             timestamp()

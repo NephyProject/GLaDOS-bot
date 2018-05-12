@@ -6,7 +6,7 @@ import jp.nephy.glados.component.api.niconico.model.SearchData
 import jp.nephy.glados.component.api.niconico.model.Video
 import jp.nephy.glados.component.api.soundcloud.model.Collection
 import jp.nephy.glados.component.api.youtubedl.YouTubeDL
-import jp.nephy.glados.component.helper.sumBy
+import jp.nephy.utils.sumBy
 
 
 val AudioTrack.remaining: Long

@@ -5,6 +5,7 @@ import jp.nephy.glados.component.helper.profile.UserProfile
 import jp.nephy.glados.component.helper.prompt.PromptBuilder
 import jp.nephy.glados.logger
 import jp.nephy.jsonkt.JsonKt
+import jp.nephy.utils.BooleanLinkedSingleCache
 import net.dv8tion.jda.core.entities.Member
 import net.dv8tion.jda.core.entities.TextChannel
 import net.dv8tion.jda.core.events.Event

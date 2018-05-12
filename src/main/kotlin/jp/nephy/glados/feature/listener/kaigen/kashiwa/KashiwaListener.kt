@@ -1,11 +1,11 @@
 package jp.nephy.glados.feature.listener.kaigen.kashiwa
 
 import jp.nephy.glados.GLaDOS
-import jp.nephy.glados.component.helper.StringLinkedSingleCache
 import jp.nephy.glados.logger
 import jp.nephy.penicillin.model.Status
 import jp.nephy.penicillin.model.StreamDelete
 import jp.nephy.penicillin.request.streaming.UserStreamListener
+import jp.nephy.utils.StringLinkedSingleCache
 import net.dv8tion.jda.core.entities.TextChannel
 
 

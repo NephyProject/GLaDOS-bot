@@ -11,26 +11,29 @@ import jp.nephy.glados.component.config.GLaDOSParameter
 import jp.nephy.glados.component.config.GLaDOSSecret
 import jp.nephy.glados.component.helper.Color
 import jp.nephy.glados.component.helper.embedMention
-import jp.nephy.glados.component.helper.enumurateClasses
 import jp.nephy.glados.feature.CommandFeature
 import jp.nephy.glados.feature.ListenerFeature
-import mu.KotlinLogging
+import jp.nephy.utils.enumurateClasses
+import jp.nephy.utils.linkedCacheDir
+import jp.nephy.utils.logger
 import net.dv8tion.jda.core.AccountType
 import net.dv8tion.jda.core.JDABuilder
+import java.nio.file.Paths
 import kotlin.system.measureTimeMillis
 
 
-val logger = KotlinLogging.logger("GLaDOS")
+val logger = logger("GLaDOS")
 
 class GLaDOS internal constructor(val config: GLaDOSConfig, val parameter: GLaDOSParameter, val secret: GLaDOSSecret, val isDebugMode: Boolean) {
     companion object {
-        const val version = "1.0.0-alpha1"
+        const val version = "1.0.0-alpha2"
 
         private lateinit var instanceInternal: GLaDOS
         val instance by lazy { instanceInternal }
     }
 
     init {
+        linkedCacheDir = Paths.get("tmp", "cache")
         instanceInternal = this
     }
 
