@@ -26,7 +26,7 @@ val logger = logger("GLaDOS")
 
 class GLaDOS internal constructor(val config: GLaDOSConfig, val parameter: GLaDOSParameter, val secret: GLaDOSSecret, val isDebugMode: Boolean) {
     companion object {
-        const val version = "1.0.0-alpha2"
+        const val version = "1.0.1-alpha1"
 
         private lateinit var instanceInternal: GLaDOS
         val instance by lazy { instanceInternal }
@@ -51,7 +51,7 @@ class GLaDOS internal constructor(val config: GLaDOSConfig, val parameter: GLaDO
                 it.embedMention {
                     title("利用可能なコマンドの一覧です")
                     color(Color.Good)
-                    it.client.commands.filterNot { it.isHidden }.forEach {
+                    it.client.commands.filter { ! it.isHidden && ! it.isOwnerCommand }.forEach {
                         field("${it.name} ${it.arguments ?: ""}") { it.help }
                     }
                 }.queue()
