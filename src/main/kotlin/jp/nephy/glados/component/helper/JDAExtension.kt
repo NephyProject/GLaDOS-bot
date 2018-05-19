@@ -2,6 +2,8 @@ package jp.nephy.glados.component.helper
 
 import com.jagrosh.jdautilities.command.CommandEvent
 import com.jagrosh.jdautilities.commons.waiter.EventWaiter
+import jp.nephy.glados.logger
+import net.dv8tion.jda.core.OnlineStatus
 import net.dv8tion.jda.core.entities.*
 import net.dv8tion.jda.core.events.Event
 import net.dv8tion.jda.core.requests.restaction.MessageAction
@@ -107,4 +109,20 @@ inline fun <reified T: Event> EventWaiter.wait(noinline condition: T.() -> Boole
 
 fun TextChannel.getMessages(limit: Int): List<Message> {
     return iterableHistory.cache(false).take(limit)
+}
+
+fun Member.addRole(role: Role) {
+    // バグ対策: オフラインユーザへのロール割当ができない問題に対応
+    if (onlineStatus != OnlineStatus.OFFLINE && ! roles.contains(role)) {
+        guild.controller.addSingleRoleToMember(this, role).queue {
+            logger.info { "$fullName に \"${role.name}\"ロールを付与しました." }
+        }
+    }
+}
+fun Member.removeRole(role: Role) {
+    if (onlineStatus != OnlineStatus.OFFLINE && roles.contains(role)) {
+        guild.controller.removeSingleRoleFromMember(this, role).queue {
+            logger.info { "$fullName から \"${role.name}\"ロールを剥奪しました." }
+        }
+    }
 }

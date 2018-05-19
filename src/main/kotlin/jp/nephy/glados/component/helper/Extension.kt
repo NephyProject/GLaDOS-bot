@@ -54,3 +54,11 @@ fun tmpFile(first: String, vararg more: String): File {
 
     return Paths.get(tmpDir.toString(), first, *more).toFile()
 }
+
+fun <K, V> MutableMap<K, V>.putIfNotNull(key: K, value: V?): V? {
+    if (value != null) {
+        put(key, value)
+    }
+
+    return value
+}
