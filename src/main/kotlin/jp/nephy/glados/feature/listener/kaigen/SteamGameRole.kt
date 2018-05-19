@@ -20,7 +20,7 @@ class SteamGameRole: ListenerFeature() {
                 try {
                     synchronize(event)
                 } catch (e: Exception) {
-                    logger.error { "ゲームロールの同期中にエラーが発生しました." }
+                    logger.error(e) { "ゲームロールの同期中にエラーが発生しました." }
                 }
                 TimeUnit.MINUTES.sleep(5)
                 profileCache.clear()
