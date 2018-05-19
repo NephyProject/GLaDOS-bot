@@ -28,7 +28,7 @@ dependencies {
 
     /* Discord */
     compile "com.jagrosh:jda-utilities:2.1"
-    compile "net.dv8tion:JDA:3.6.0_363"
+    compile "net.dv8tion:JDA:3.6.0_367"
     compile "com.sedmelluq:lavaplayer:1.2.63"
     compile "com.sedmelluq:jda-nas:1.0.5"
 
@@ -47,7 +47,7 @@ dependencies {
     compile "org.jetbrains.kotlin:kotlin-compiler:$kotlin_version"
 
     /* Misc */
-    compile "jp.nephy:common-utils:1.0.2"
+    compile "jp.nephy:common-utils:1.0.3"
     compile "org.jsoup:jsoup:1.11.2"
     compile "com.rometools:rome:1.9.0"
 }
