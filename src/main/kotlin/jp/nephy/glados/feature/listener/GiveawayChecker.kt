@@ -47,7 +47,8 @@ class GiveawayChecker: ListenerFeature() {
             "bananagiveaway.com",
             "gamecode.win",
             "redd.it",
-            "twitch.tv"
+            "twitch.tv",
+            "opiumpulses.com"
     )
 
     override fun onReady(event: ReadyEvent) {
