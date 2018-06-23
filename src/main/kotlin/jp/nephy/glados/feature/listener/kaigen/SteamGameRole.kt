@@ -13,7 +13,10 @@ import kotlin.concurrent.thread
 
 
 class SteamGameRole: ListenerFeature() {
-    private val profileCache = mutableMapOf<Long, MutableMap<Long, UserProfile>>()
+    companion object {
+        val profileCache = mutableMapOf<Long, MutableMap<Long, UserProfile>>()
+    }
+
     override fun onReady(event: ReadyEvent) {
         thread(name = "Steam Game Role Synchronizer") {
             while (true) {
@@ -55,7 +58,7 @@ class SteamGameRole: ListenerFeature() {
                     val gameConfig = config.option.steamGameRoles.find { it.appId == game.appid } ?: continue
 
                     if (! guild.selfMember.hasPermission(Permission.MANAGE_ROLES)) {
-                        logger.warn { "サーバ ${guild.name} でロールの管理権限がありません." }
+                        logger.warn { "サーバ: ${guild.name} でロールの管理権限がありません." }
                         continue
                     }
 
