@@ -142,7 +142,7 @@ class GiveawayChecker: ListenerFeature() {
                 val thumbnailUrl = it["data"].jsonObject.getOrNull("preview")?.jsonObject?.getOrNull("images")?.jsonArray?.get(0)?.jsonObject?.getOrNull("source")?.jsonObject?.getOrNull("url")?.string
                 channel.embedMessage {
                     title(title)
-                    author("Steam Giveaway Info", "https://giveaway.nephy.jp", "https://nephy.jp/assets/img/page/discord/giveaway.jpg")
+                    author("Steam Giveaway Info", "https://giveaway.nephy.jp", "https://nephy.jp/assets/img/discord/giveaway.jpg")
                     description { campaignUrl }
 
                     field("Reddit 元記事") { redditUrl }
@@ -191,7 +191,7 @@ class GiveawayChecker: ListenerFeature() {
             channels.forEach { channel ->
                 channel.embedMessage {
                     title(title)
-                    author("Steam Giveaway Info", "https://giveaway.nephy.jp", "https://nephy.jp/assets/img/page/discord/giveaway.jpg")
+                    author("Steam Giveaway Info", "https://giveaway.nephy.jp", "https://nephy.jp/assets/img/discord/giveaway.jpg")
                     description { url }
 
 
