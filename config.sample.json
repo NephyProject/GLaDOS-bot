@@ -1,0 +1,162 @@
+{
+    "token": "",
+    "owner_id": 187577389419724800,
+    "prefix": "!",
+    "guilds": {
+        "Kaigen": {
+            "id": 187578406940966912,
+            "is_main": true,
+            "text_channels": {
+                "default": 187578406940966912,
+                "bot": 294505863631077379,
+                "log": 294373627837808640,
+                "rules": 211665577989636097,
+                "i_hate_such": 367991669032747010,
+                "steam_giveaway": 278454146867134464
+            },
+            "voice_channels": {
+                "default": 187578406940966913,
+                "no_mute": 431457655865868288,
+                "mute_limit": 460033721173540874
+            },
+            "roles": {
+                "admin": 310600829000220673,
+                "inkya": 332881733437620224,
+                "in_voice_channel": 447354712690524160,
+                "ignore_game_role": 469438208707657739
+            },
+            "options": {
+                "player_volume": 5,
+                "enable_command": true,
+                "enable_find_video_url": true,
+                "enable_niconico_dict": true,
+                "enable_happy_birthday": true,
+                "enable_audit": true,
+
+                "client_token": "mfa.xxxxx",
+                "sync_steam_games": [
+                    {
+                        "appid": 578080,
+                        "name": "[Game] PUBG"
+                    },
+                    {
+                        "appid": 282800,
+                        "name": "[Game] 100% Orange Juice"
+                    },
+                    {
+                        "appid": 528510,
+                        "name": "[Game] Turbo Pug 3D"
+                    },
+                    {
+                        "appid": 495890,
+                        "name": "[Game] Montaro"
+                    },
+                    {
+                        "appid": 218620,
+                        "name": "[Game] PAYDAY 2"
+                    },
+                    {
+                        "appid": 648800,
+                        "name": "[Game] Raft"
+                    },
+                    {
+                        "appid": 251570,
+                        "name": "[Game] 7 Days to Die"
+                    },
+                    {
+                        "appid": 242760,
+                        "name": "[Game] The Forest"
+                    },
+                    {
+                        "appid": 698780,
+                        "name": "[Game] Literature Club"
+                    },
+                    {
+                        "appid": 550,
+                        "name": "[Game] L4D2"
+                    },
+                    {
+                        "appid": 438100,
+                        "name": "VRChat"
+                    }
+                ]
+            }
+        },
+        "Lava": {
+            "id": 310410003137822721,
+            "text_channels": {
+                "giveaway": 363230463973785600
+            },
+            "options": {
+                "enable_command": false,
+                "enable_audit": true
+            }
+        },
+        "Moomination": {
+            "id": 329256707006005250,
+            "text_channels": {
+                "default": 368600064437911553,
+                "bot": 439413010616942602,
+                "log": 439413094704218134,
+                "steam_giveaway": 439413200413261836
+            },
+            "voice_channels": {
+                "default": 368693766921388032,
+                "no_mute": 411538200872484864
+            },
+            "roles": {
+                "admin": 403151179183292417,
+                "inkya": 439412776549613568
+            },
+            "options": {
+                "enable_command": true,
+                "enable_find_video_url": false,
+                "enable_niconico_dict": true,
+
+                "client_token": "xxx",
+                "sync_steam_games": [
+                    {
+                        "appid": 578080,
+                        "name": "🐔 PUBG"
+                    },
+                    {
+                        "appid": 730,
+                        "name": "🔫 CS:GO"
+                    },
+                    {
+                        "appid": 4000,
+                        "name": "🔩 Garry's Mod"
+                    },
+                    {
+                        "appid": 282800,
+                        "name": "🍊 100% Orange Juice"
+                    },
+                    {
+                        "appid": 252950,
+                        "name": "🚀 Rocket League"
+                    }
+                ]
+            }
+        },
+        "Af1r": {
+            "id": 287238985665740800,
+            "text_channels": {
+                "bot": 472288167383531522,
+                "log": 408546369792507905
+            },
+            "voice_channels": {
+                "no_mute": 472289144547049472
+            },
+            "roles": {
+                "admin": 295916982493118466,
+                "inkya": 419541153520549888
+            },
+            "options": {
+                "enable_command": true,
+                "enable_find_video_url": false,
+                "enable_niconico_dict": false,
+                "enable_audit": true
+            }
+        }
+    }
+}
