@@ -6,7 +6,7 @@
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <withJansi>true</withJansi>
         <encoder>
-            <pattern>[%highlight(%-5level)] [%d{HH:mm:ss.SSS}] [%green(%C{25})#%boldGreen(%M):%boldGreen(%L) / %thread] %m%n</pattern>
+            <pattern>[%highlight(%-5level)] [%d{HH:mm:ss.SSS}] [%green(%logger) / %thread] %m%n</pattern>
         </encoder>
     </appender>
     <appender name="DEBUG_FILE" class="ch.qos.logback.core.FileAppender">
@@ -14,7 +14,7 @@
         <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
             <charset>UTF-8</charset>
             <outputPatternAsHeader>false</outputPatternAsHeader>
-            <pattern>[%-5level] [%d{HH:mm:ss.SSS}] [%thread] %m%n</pattern>
+            <pattern>[%-5level] [%d{HH:mm:ss.SSS}] [%green(%logger) / %thread] %m%n</pattern>
         </encoder>
     </appender>
     <appender name="ERROR_FILE" class="ch.qos.logback.core.FileAppender">
@@ -22,7 +22,7 @@
         <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
             <charset>UTF-8</charset>
             <outputPatternAsHeader>false</outputPatternAsHeader>
-            <pattern>[%-5level] [%d{HH:mm:ss.SSS}] [%thread] %m%n</pattern>
+            <pattern>[%-5level] [%d{HH:mm:ss.SSS}] [%green(%logger) / %thread] %m%n</pattern>
         </encoder>
         <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
             <level>WARN</level>
@@ -30,6 +30,7 @@
     </appender>
 
     <logger name="GLaDOS" level="DEBUG" />
+    <logger name="Feature" level="DEBUG" />
     <logger name="net.dv8tion.jda" level="ERROR" />
 
     <root level="INFO">

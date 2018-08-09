@@ -35,6 +35,7 @@
 ## TODO
 
 - [ ] Google Cloud Speech APIを使って いろいろしたい (Ok, GLaDOS!)
+- [ ] Steamキーの配布機能, Giveaway
 
 ## 使用法
 GLaDOSをご利用いただいているサーバでは 以下のようなConfigを提供していただければ機能を追加できます。

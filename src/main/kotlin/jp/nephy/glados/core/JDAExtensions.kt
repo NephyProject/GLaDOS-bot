@@ -1,0 +1,79 @@
+package jp.nephy.glados.core
+
+import jp.nephy.glados.config
+import net.dv8tion.jda.core.OnlineStatus
+import net.dv8tion.jda.core.entities.*
+import net.dv8tion.jda.core.events.Event
+
+const val adminRoleKey = "admin"
+
+val Event.nullableGuild
+    get() = try {
+        javaClass.getMethod("getGuild").invoke(this) as? Guild
+    } catch (e: NoSuchMethodException) {
+        null
+    }
+val Event.nullableUser
+    get() = try {
+        javaClass.getMethod("getUser").invoke(this) as? User
+    } catch (e: NoSuchMethodException) {
+        null
+    }
+val Event.nullableMember
+    get() = try {
+        javaClass.getMethod("getMember").invoke(this) as? Member
+    } catch (e: NoSuchMethodException) {
+        null
+    }
+
+val User.displayName: String
+    get() = "@$name#$discriminator"
+val User.isSelfUser: Boolean
+    get() = idLong == jda.selfUser.idLong
+val VoiceChannel.isNoOneExceptSelf: Boolean
+    get() = members.count { !it.user.isSelfUser } == 0
+val Member.fullName: String
+    get() = "$effectiveName (${user.displayName}, ${guild.name})"
+val Member.fullNameWithoutGuild: String
+    get() = "$effectiveName (${user.displayName})"
+val Message.fullName: String
+    get() = "${member.fullNameWithoutGuild} #${textChannel.name} (${guild.name})"
+
+fun Member.hasRole(id: Long): Boolean {
+    return roles.any { it.idLong == id }
+}
+
+fun Member.hasRole(role: Role): Boolean {
+    return hasRole(role.idLong)
+}
+
+fun TextChannel.fetchMessages(limit: Int): List<Message> {
+    return iterableHistory.cache(false).take(limit)
+}
+
+fun Member.isAdmin(): Boolean {
+    val role = config.forGuild(guild)?.role(adminRoleKey) ?: return false
+    return hasRole(role)
+}
+
+fun User.isGLaDOSOwner(): Boolean {
+    val ownerId = config.ownerId ?: return false
+    return idLong == ownerId
+}
+
+fun Member.isGLaDOSOwner(): Boolean {
+    return user.isGLaDOSOwner()
+}
+
+fun Member.addRole(role: Role) {
+    // バグ対策: オフラインユーザへのロール割当ができない問題に対応
+    if (onlineStatus != OnlineStatus.OFFLINE && !roles.contains(role)) {
+        guild.controller.addSingleRoleToMember(this, role)
+    }
+}
+
+fun Member.removeRole(role: Role) {
+    if (onlineStatus != OnlineStatus.OFFLINE && roles.contains(role)) {
+        guild.controller.removeSingleRoleFromMember(this, role)
+    }
+}
