@@ -10,7 +10,6 @@ import com.sedmelluq.discord.lavaplayer.track.AudioTrack
 import jp.nephy.glados.core.GLaDOSConfig
 import jp.nephy.glados.core.api.niconico.NiconicoClient
 import jp.nephy.glados.core.api.youtube.YouTubeClient
-import jp.nephy.glados.core.audio.AudioReceiveHandlerImpl
 import jp.nephy.glados.core.audio.AudioSendHandlerImpl
 import jp.nephy.glados.core.audio.ConnectionListenerImpl
 import jp.nephy.glados.core.audio.music.adapter.EventMessage
@@ -28,9 +27,9 @@ class GuildPlayer(val guild: Guild, val guildConfig: GLaDOSConfig.GuildConfig, p
         volume = guildConfig.intOption("player_volume", 5)
     }
 
-    val connectionListener = ConnectionListenerImpl()
+    val connectionListener = ConnectionListenerImpl(guild)
     val sendingHandler = AudioSendHandlerImpl(player)
-    val receivingHandler = AudioReceiveHandlerImpl(this)
+    // val receivingHandler = AudioReceiveHandlerImpl(this)
     val controls = TrackControls(this, player)
 
     init {
