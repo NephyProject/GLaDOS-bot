@@ -443,7 +443,7 @@ class MusicPlayer: BotFeature() {
 
     @Listener
     override fun onGuildMessageReactionAdd(event: GuildMessageReactionAddEvent) {
-        if (event.user.isSelfUser || event.user.isBot) {
+        if (event.user.isBotOrSelfUser) {
             return
         }
 
@@ -555,7 +555,7 @@ class MusicPlayer: BotFeature() {
                     } else {
                         val requiredRate = 0.4
                         val voteCount = ++skipForwardVote
-                        val vcMembersCount = guildPlayer.currentVoiceChannel.members.count { !it.user.isBot }
+                        val vcMembersCount = guildPlayer.currentVoiceChannel.members.count { !it.user.isBotOrSelfUser }
                         val rate = if (vcMembersCount != 0) {
                             1.0 * voteCount / vcMembersCount
                         } else {
@@ -701,7 +701,7 @@ class MusicPlayer: BotFeature() {
                 } else {
                     val requiredRate = 0.4
                     val voteCount = ++clearVote
-                    val vcMembersCount = guildPlayer.currentVoiceChannel.members.count { !it.user.isBot }
+                    val vcMembersCount = guildPlayer.currentVoiceChannel.members.count { !it.user.isBotOrSelfUser }
                     val rate = if (vcMembersCount != 0) {
                         1.0 * voteCount / vcMembersCount
                     } else {
@@ -750,7 +750,7 @@ class MusicPlayer: BotFeature() {
     @Listener
     override fun onGuildMessageReceived(event: GuildMessageReceivedEvent) {
         val guildConfig = config.forGuild(event.guild) ?: return
-        if (!guildConfig.boolOption("enable_find_video_url", false) || playCommandSyntax.containsMatchIn(event.message.contentDisplay)) {
+        if (guildConfig.boolOption("enable_find_video_url").isFalseOrNull() || playCommandSyntax.containsMatchIn(event.message.contentDisplay)) {
             return
         }
 

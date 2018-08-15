@@ -6,6 +6,7 @@ import jp.nephy.glados.core.builder.Color
 import jp.nephy.glados.core.builder.message
 import jp.nephy.glados.core.feature.BotFeature
 import jp.nephy.glados.core.feature.subscription.Listener
+import jp.nephy.glados.core.isFalseOrNull
 import jp.nephy.glados.model.MemberModel
 import jp.nephy.glados.secret
 import jp.nephy.utils.*
@@ -26,7 +27,7 @@ class HappyBirthday: BotFeature() {
         for (guild in event.jda.guilds) {
             val guildConfig = config.forGuild(guild)
             val defaultChannel = guildConfig?.textChannel("default") ?: continue
-            if (!guildConfig.boolOption("enable_happy_birthday", false)) {
+            if (guildConfig.boolOption("enable_happy_birthday").isFalseOrNull()) {
                 continue
             }
             watch(guild, defaultChannel)

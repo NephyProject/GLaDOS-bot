@@ -15,6 +15,10 @@ val productionConfigPath = Paths.get("config.prod.json")!!
 val developmentConfigPath = Paths.get("config.dev.json")!!
 val secretConfigPath = Paths.get("config.secret.json")!!
 
+fun Boolean?.isFalseOrNull(): Boolean {
+    return this != true
+}
+
 class GLaDOSConfig private constructor(override val json: JsonObject): JsonModel {
     companion object {
         fun load(path: Path): GLaDOSConfig {
@@ -68,7 +72,11 @@ class GLaDOSConfig private constructor(override val json: JsonObject): JsonModel
         }
 
         fun boolOption(key: String, default: Boolean): Boolean {
-            return option(key) { it.nullableBool } ?: default
+            return boolOption(key) ?: default
+        }
+
+        fun boolOption(key: String): Boolean? {
+            return option(key) { it.nullableBool }
         }
     }
 }

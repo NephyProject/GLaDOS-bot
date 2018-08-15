@@ -5,7 +5,7 @@ import jp.nephy.glados.core.builder.Color
 import jp.nephy.glados.core.builder.message
 import jp.nephy.glados.core.feature.BotFeature
 import jp.nephy.glados.core.feature.subscription.Listener
-import jp.nephy.glados.core.isSelfUser
+import jp.nephy.glados.core.isBotOrSelfUser
 import jp.nephy.glados.secret
 import jp.nephy.penicillin.OfficialClient
 import jp.nephy.penicillin.PenicillinClient
@@ -24,7 +24,7 @@ class IHateSuchWatcher: BotFeature() {
     @Listener
     override fun onGuildMessageReactionAdd(event: GuildMessageReactionAddEvent) {
         val iHateSuchChannel = config.forGuild(event.guild)?.textChannel("i_hate_such") ?: return
-        if (event.member == null || event.user.isSelfUser || event.channel.idLong != iHateSuchChannel.idLong) {
+        if (event.member == null || event.user.isBotOrSelfUser || event.channel.idLong != iHateSuchChannel.idLong) {
             return
         }
 
@@ -45,7 +45,7 @@ class IHateSuchWatcher: BotFeature() {
     @Listener
     override fun onGuildMessageReceived(event: GuildMessageReceivedEvent) {
         val iHateSuchChannel = config.forGuild(event.guild)?.textChannel("i_hate_such") ?: return
-        if (event.member == null || event.author.isSelfUser || event.channel.idLong != iHateSuchChannel.idLong) {
+        if (event.member == null || event.author.isBotOrSelfUser || event.channel.idLong != iHateSuchChannel.idLong) {
             return
         }
 
@@ -64,7 +64,7 @@ class IHateSuchWatcher: BotFeature() {
     @Listener
     override fun onGuildMessageUpdate(event: GuildMessageUpdateEvent) {
         val iHateSuchChannel = config.forGuild(event.guild)?.textChannel("i_hate_such") ?: return
-        if (event.member == null || event.author.isSelfUser || event.channel.idLong != iHateSuchChannel.idLong) {
+        if (event.member == null || event.author.isBotOrSelfUser || event.channel.idLong != iHateSuchChannel.idLong) {
             return
         }
 

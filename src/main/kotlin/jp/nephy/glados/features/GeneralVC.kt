@@ -5,6 +5,7 @@ import jp.nephy.glados.core.addRole
 import jp.nephy.glados.core.feature.BotFeature
 import jp.nephy.glados.core.feature.subscription.Listener
 import jp.nephy.glados.core.feature.subscription.Pool
+import jp.nephy.glados.core.isBotOrSelfUser
 import jp.nephy.glados.core.removeRole
 import net.dv8tion.jda.core.entities.Guild
 import net.dv8tion.jda.core.entities.Member
@@ -32,7 +33,7 @@ class GeneralVC: BotFeature() {
         try {
             roleEnabledGuilds.keys.forEach { guild ->
                 for (member in guild.members) {
-                    if (!member.user.isBot && member.voiceState.inVoiceChannel() && member.voiceState.channel != guild.afkChannel) {
+                    if (!member.user.isBotOrSelfUser && member.voiceState.inVoiceChannel() && member.voiceState.channel != guild.afkChannel) {
                         member.addInVoiceChannelRole()
                     } else {
                         member.removeInVoiceChannelRole()
@@ -45,16 +46,18 @@ class GeneralVC: BotFeature() {
     }
 
     private fun Member.addInVoiceChannelRole() {
-        if (user.isBot) {
+        if (user.isBotOrSelfUser) {
             return
         }
+
         addRole(roleEnabledGuilds[guild] ?: return)
     }
 
     private fun Member.removeInVoiceChannelRole() {
-        if (user.isBot) {
+        if (user.isBotOrSelfUser) {
             return
         }
+
         removeRole(roleEnabledGuilds[guild] ?: return)
     }
 

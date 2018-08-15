@@ -5,6 +5,7 @@ import jp.nephy.glados.core.feature.BotFeature
 import jp.nephy.glados.core.feature.subscription.Listener
 import jp.nephy.glados.core.feature.subscription.Pool
 import jp.nephy.glados.core.fullName
+import jp.nephy.glados.core.isBotOrSelfUser
 import jp.nephy.utils.IntLinkedSingleCache
 import net.dv8tion.jda.core.entities.Guild
 import net.dv8tion.jda.core.entities.Member
@@ -51,16 +52,18 @@ class MuteLimitChannel: BotFeature() {
 
     private val muteMembers = mutableMapOf<Member, Int>()
     private fun Member.startMuting() {
-        if (user.isBot) {
+        if (user.isBotOrSelfUser) {
             return
         }
+
         muteMembers[this] = 0
     }
 
     private fun Member.stopMuting() {
-        if (user.isBot) {
+        if (user.isBotOrSelfUser) {
             return
         }
+
         muteMembers.remove(this)
     }
 

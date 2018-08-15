@@ -11,6 +11,7 @@ import jp.nephy.glados.config
 import jp.nephy.glados.core.feature.BotFeature
 import jp.nephy.glados.core.feature.subscription.Listener
 import jp.nephy.glados.core.hasRole
+import jp.nephy.glados.core.isBotOrSelfUser
 import jp.nephy.glados.secret
 import jp.nephy.jsonkt.*
 import jp.nephy.utils.getSync
@@ -61,7 +62,7 @@ class SteamGameRoleSync: BotFeature() {
             val gameRoles = steamGameRoles.mapNotNull { guild.getRolesByName(it.name, false).firstOrNull() }
 
             guild.members.forEach memberLoop@{ member ->
-                if (member.user.isBot) {
+                if (member.user.isBotOrSelfUser) {
                     return@memberLoop
                 }
 

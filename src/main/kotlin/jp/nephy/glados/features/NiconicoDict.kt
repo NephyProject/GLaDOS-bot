@@ -6,6 +6,7 @@ import jp.nephy.glados.core.builder.deleteQueue
 import jp.nephy.glados.core.builder.reply
 import jp.nephy.glados.core.feature.BotFeature
 import jp.nephy.glados.core.feature.subscription.Listener
+import jp.nephy.glados.core.isFalseOrNull
 import net.dv8tion.jda.core.events.message.guild.GuildMessageReceivedEvent
 import org.jsoup.Jsoup
 import java.net.URL
@@ -16,7 +17,7 @@ class NiconicoDict: BotFeature() {
 
     @Listener
     override fun onGuildMessageReceived(event: GuildMessageReceivedEvent) {
-        if (config.forGuild(event.guild)?.boolOption("enable_niconico_dict", false) != true) {
+        if (config.forGuild(event.guild)?.boolOption("enable_niconico_dict").isFalseOrNull()) {
             return
         }
         val match = pattern.matchEntire(event.message.contentDisplay) ?: return

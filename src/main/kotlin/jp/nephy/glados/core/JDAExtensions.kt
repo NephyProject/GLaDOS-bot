@@ -1,7 +1,6 @@
 package jp.nephy.glados.core
 
 import jp.nephy.glados.config
-import net.dv8tion.jda.core.OnlineStatus
 import net.dv8tion.jda.core.entities.*
 import net.dv8tion.jda.core.events.Event
 
@@ -13,23 +12,17 @@ val Event.nullableGuild
     } catch (e: NoSuchMethodException) {
         null
     }
-val Event.nullableUser
-    get() = try {
-        javaClass.getMethod("getUser").invoke(this) as? User
-    } catch (e: NoSuchMethodException) {
-        null
-    }
-val Event.nullableMember
-    get() = try {
-        javaClass.getMethod("getMember").invoke(this) as? Member
-    } catch (e: NoSuchMethodException) {
-        null
-    }
 
 val User.displayName: String
     get() = "@$name#$discriminator"
 val User.isSelfUser: Boolean
     get() = idLong == jda.selfUser.idLong
+val User.isBotOrSelfUser: Boolean
+    get() = isBot || isSelfUser
+val TextChannel.fullName: String
+    get() = "#$name (${guild?.name})"
+val TextChannel.fullNameWithoutGuild: String
+    get() = "#$name"
 val VoiceChannel.isNoOneExceptSelf: Boolean
     get() = members.count { !it.user.isSelfUser } == 0
 val Member.fullName: String
@@ -37,7 +30,9 @@ val Member.fullName: String
 val Member.fullNameWithoutGuild: String
     get() = "$effectiveName (${user.displayName})"
 val Message.fullName: String
-    get() = "${member.fullNameWithoutGuild} #${textChannel.name} (${guild.name})"
+    get() = "${member.fullNameWithoutGuild} ${textChannel?.fullName}"
+val Message.fullNameWithoutGuild: String
+    get() = "${member.fullNameWithoutGuild} ${textChannel?.fullNameWithoutGuild}"
 
 fun Member.hasRole(id: Long): Boolean {
     return roles.any { it.idLong == id }
@@ -66,14 +61,13 @@ fun Member.isGLaDOSOwner(): Boolean {
 }
 
 fun Member.addRole(role: Role) {
-    // バグ対策: オフラインユーザへのロール割当ができない問題に対応
-    if (onlineStatus != OnlineStatus.OFFLINE && !roles.contains(role)) {
+    if (!hasRole(role)) {
         guild.controller.addSingleRoleToMember(this, role)
     }
 }
 
 fun Member.removeRole(role: Role) {
-    if (onlineStatus != OnlineStatus.OFFLINE && roles.contains(role)) {
+    if (hasRole(role)) {
         guild.controller.removeSingleRoleFromMember(this, role)
     }
 }

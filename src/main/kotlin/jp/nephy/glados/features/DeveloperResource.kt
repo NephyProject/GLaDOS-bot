@@ -8,7 +8,7 @@ import jp.nephy.glados.core.feature.BotFeature
 import jp.nephy.glados.core.feature.subscription.*
 import jp.nephy.glados.core.fetchMessages
 import jp.nephy.glados.core.fullNameWithoutGuild
-import jp.nephy.glados.core.isSelfUser
+import jp.nephy.glados.core.isBotOrSelfUser
 import jp.nephy.glados.core.tmpFile
 import jp.nephy.glados.isDebugMode
 import net.dv8tion.jda.core.entities.MessageType
@@ -87,7 +87,7 @@ class DeveloperResource: BotFeature() {
                 if (channel.hasLatestMessage()) {
                     val twoWeeksAgo = (System.currentTimeMillis() - 14 * 24 * 60 * 60 * 1000 - MiscUtil.DISCORD_EPOCH) shl MiscUtil.TIMESTAMP_OFFSET.toInt()
 
-                    val messages = channel.fetchMessages(100).filter { it.author.isSelfUser && it.type != MessageType.GUILD_MEMBER_JOIN && MiscUtil.parseSnowflake(it.id) <= twoWeeksAgo }
+                    val messages = channel.fetchMessages(100).filter { it.author.isBotOrSelfUser && it.type != MessageType.GUILD_MEMBER_JOIN && MiscUtil.parseSnowflake(it.id) <= twoWeeksAgo }
 
                     if (messages.isEmpty()) {
                         logger.debug { "テキストチャンネル: #${channel.name}(${channel.guild.name}) は空でした." }
@@ -113,7 +113,7 @@ class DeveloperResource: BotFeature() {
             }
         }.queue {
             try {
-                val messages = event.textChannel?.iterableHistory?.cache(false)?.take(100).orEmpty().filter { it.author.isBot }
+                val messages = event.textChannel?.iterableHistory?.cache(false)?.take(100).orEmpty().filter { it.author.isBotOrSelfUser }
                 if (messages.isNotEmpty()) {
                     if (messages.size == 1) {
                         event.textChannel?.deleteMessageById(messages.first().idLong)
