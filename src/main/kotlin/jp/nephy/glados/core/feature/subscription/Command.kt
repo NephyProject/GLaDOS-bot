@@ -1,13 +1,11 @@
 package jp.nephy.glados.core.feature.subscription
 
 import jp.nephy.glados.config
-import jp.nephy.glados.core.GLaDOSConfig
+import jp.nephy.glados.core.*
 import jp.nephy.glados.core.builder.Color
 import jp.nephy.glados.core.builder.deleteQueue
 import jp.nephy.glados.core.builder.reply
 import jp.nephy.glados.core.feature.BotFeature
-import jp.nephy.glados.core.isAdmin
-import jp.nephy.glados.core.isGLaDOSOwner
 import jp.nephy.glados.jda
 import jp.nephy.glados.logger
 import jp.nephy.glados.player
@@ -69,27 +67,24 @@ class CommandSubscriptionClient: SubscriptionClient<Command>, ListenerAdapter() 
     }
 
     override fun onMessageReceived(event: MessageReceivedEvent) {
+        if (event.author.isBotOrSelfUser) {
+            return
+        }
+
         handleMessage(event, event.message, event.channelType)
     }
 
     override fun onMessageUpdate(event: MessageUpdateEvent) {
+        if (event.author.isBotOrSelfUser) {
+            return
+        }
+
         handleMessage(event, event.message, event.channelType)
     }
 
-    private val space = "\\s".toRegex()
+    private val space = "\\s+".toRegex()
     private fun handleMessage(event: GenericMessageEvent, message: Message, channelType: ChannelType) {
         val text = message.contentDisplay
-        if (message.guild != null && config.forGuild(message.guild)?.boolOption("enable_command", false) != true) {
-            message.reply {
-                embed {
-                    title("コマンドエラー: $text")
-                    description { "サーバ ${event.guild.name} ではGLaDOSのコマンド機能は利用できません。サーバ管理者またはGLaDOS開発者にご連絡ください。" }
-                    color(Color.Bad)
-                    timestamp()
-                }
-            }.deleteQueue(30)
-            return
-        }
 
         loop@ for (subscription in subscriptions) {
             if (event.guild != null && subscription.targetGuilds.isNotEmpty() && subscription.targetGuilds.all { it.id != event.guild.idLong }) {
@@ -182,6 +177,19 @@ class CommandSubscriptionClient: SubscriptionClient<Command>, ListenerAdapter() 
                 }
             }
 
+            // check
+            if (message.guild != null && config.forGuild(message.guild)?.boolOption("enable_command").isFalseOrNull()) {
+                message.reply {
+                    embed {
+                        title("コマンドエラー: $text")
+                        description { "サーバ ${event.guild.name} ではGLaDOSのコマンド機能は利用できません。サーバ管理者またはGLaDOS開発者にご連絡ください。" }
+                        color(Color.Bad)
+                        timestamp()
+                    }
+                }.deleteQueue(30)
+                return
+            }
+
             // セキュリティチェック
             when (subscription.annotation.permission) {
                 CommandPermission.Anyone -> {
@@ -256,7 +264,11 @@ class CommandSubscriptionClient: SubscriptionClient<Command>, ListenerAdapter() 
     }
 }
 
+private val spaceRegex = "\\s+".toRegex()
+
 class CommandEvent private constructor(val args: String, val message: Message, val user: User, val member: Member?, val guild: Guild?, val textChannel: TextChannel?, val privateChannel: PrivateChannel?, val channel: MessageChannel): Event(jda, jda.responseTotal) {
     constructor(args: String, event: MessageReceivedEvent): this(args, event.message, event.author, event.member, event.guild, event.textChannel, event.privateChannel, event.channel)
     constructor(args: String, event: MessageUpdateEvent): this(args, event.message, event.author, event.member, event.guild, event.textChannel, event.privateChannel, event.channel)
+
+    val argList = args.split(spaceRegex)
 }
