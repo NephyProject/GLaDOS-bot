@@ -13,15 +13,6 @@ import kotlin.system.measureTimeMillis
 class EvalCommand: BotFeature() {
     @Command(permission = CommandPermission.OwnerOnly, description = "JavaScriptを実行します。", args = "<JavaScriptコード>")
     fun eval(event: CommandEvent) {
-        eval("Nashorn", event)
-    }
-
-    @Command(permission = CommandPermission.OwnerOnly, description = "Kotlin Scriptを実行します。", args = "<Kotlinコード>")
-    fun evalk(event: CommandEvent) {
-        eval("kotlin", event)
-    }
-
-    private fun eval(engineName: String, event: CommandEvent) {
         event.reply {
             embed {
                 title("実行中...")
@@ -33,7 +24,7 @@ class EvalCommand: BotFeature() {
                 embed {
                     title("実行結果")
                     try {
-                        val engine = ScriptEngineManager().getEngineByName(engineName).apply {
+                        val engine = ScriptEngineManager().getEngineByName("Nashorn").apply {
                             put("event", event)
                             put("jda", event.jda)
                             put("guild", event.guild)
