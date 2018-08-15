@@ -2,12 +2,13 @@ package jp.nephy.glados.core.feature
 
 import io.ktor.util.findAllSupertypes
 import jp.nephy.glados.config
+import jp.nephy.glados.core.Logger
 import jp.nephy.glados.core.feature.subscription.*
-import jp.nephy.glados.logger
 import net.dv8tion.jda.core.events.Event
 import kotlin.system.measureTimeMillis
 
 class FeatureManager(prefix: String) {
+    private val logger = Logger("GLaDOS.FeatureManager", false)
     val commandClient = CommandSubscriptionClient()
     val listenerClient = ListenerSubscriptionClient()
     val poolClient = PoolSubscriptionClient()
