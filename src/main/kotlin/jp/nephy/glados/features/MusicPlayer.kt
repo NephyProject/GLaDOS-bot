@@ -29,6 +29,7 @@ import jp.nephy.glados.secret
 import jp.nephy.utils.characterLength
 import jp.nephy.utils.round
 import jp.nephy.utils.sumBy
+import kotlinx.coroutines.experimental.launch
 import net.dv8tion.jda.core.Permission
 import net.dv8tion.jda.core.entities.Member
 import net.dv8tion.jda.core.entities.TextChannel
@@ -54,7 +55,7 @@ class MusicPlayer: BotFeature() {
     }
 
     @Command(channelType = CommandChannelType.TextChannel, description = "指定されたメディアを再生します。", args = "<検索ワード|動画URL|プレイリストURL>")
-    fun play(event: CommandEvent) {
+    suspend fun play(event: CommandEvent) {
         val guildPlayer = event.guild?.player ?: return
         if (PlayableVideoURL.values().any { it.match(event.args) }) {
             guildPlayer.loadTrack(event.args, TrackType.UserRequest, object: PlayerLoadResultHandler {
@@ -367,7 +368,9 @@ class MusicPlayer: BotFeature() {
                         }
                     }.deleteQueue(30)
 
-                    soundCloud.play(guildPlayer, chartType, genre)
+                    launch {
+                        soundCloud.play(guildPlayer, chartType, genre)
+                    }
 
                     logger.info { "サーバ ${guildPlayer.guild.name} でSoundCloud ${genre.friendlyName}ジャンルの${chartType.friendlyName}チャートをキューに追加します." }
                 }
@@ -447,7 +450,7 @@ class MusicPlayer: BotFeature() {
             return
         }
 
-        val message = MessageCollector.get(event.messageIdLong) ?: return
+        val message = MessageCollector.latest(event.messageIdLong) ?: return
         if (!message.author.isSelfUser) {
             return
         }

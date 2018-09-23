@@ -8,6 +8,7 @@ import com.sedmelluq.discord.lavaplayer.tools.FriendlyException
 import com.sedmelluq.discord.lavaplayer.track.AudioPlaylist
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack
 import jp.nephy.glados.core.GLaDOSConfig
+import jp.nephy.glados.core.Logger
 import jp.nephy.glados.core.api.niconico.NiconicoClient
 import jp.nephy.glados.core.api.youtube.YouTubeClient
 import jp.nephy.glados.core.audio.AudioSendHandlerImpl
@@ -15,11 +16,12 @@ import jp.nephy.glados.core.audio.ConnectionListenerImpl
 import jp.nephy.glados.core.audio.music.adapter.EventMessage
 import jp.nephy.glados.core.audio.music.adapter.TrackControls
 import jp.nephy.glados.core.toMilliSecondString
-import jp.nephy.glados.logger
 import jp.nephy.glados.secret
 import jp.nephy.utils.sumBy
 import net.dv8tion.jda.core.entities.Guild
 import net.dv8tion.jda.core.entities.VoiceChannel
+
+private val logger = Logger("GLaDOS.Audio.GuildPlayer")
 
 class GuildPlayer(val guild: Guild, val guildConfig: GLaDOSConfig.GuildConfig, private val defaultVoiceChannel: VoiceChannel) {
     private val playerManager = DefaultAudioPlayerManager()
@@ -41,7 +43,7 @@ class GuildPlayer(val guild: Guild, val guildConfig: GLaDOSConfig.GuildConfig, p
         player.addListener(EventMessage(this))
     }
 
-    fun searchTrack(query: String, priority: SearchPriority, limit: Int = 20, handler: PlayerSearchResultHandler) {
+    suspend fun searchTrack(query: String, priority: SearchPriority, limit: Int = 20, handler: PlayerSearchResultHandler) {
         if (priority == SearchPriority.Niconico || priority == SearchPriority.Undefined) {
             val niconicoClient = NiconicoClient()
             val nicoResult = niconicoClient.search(query, limit = limit)

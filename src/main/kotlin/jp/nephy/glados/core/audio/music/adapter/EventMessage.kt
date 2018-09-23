@@ -6,6 +6,7 @@ import com.sedmelluq.discord.lavaplayer.tools.FriendlyException
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack
 import com.sedmelluq.discord.lavaplayer.track.AudioTrackEndReason
 import com.sedmelluq.discord.lavaplayer.track.AudioTrackState
+import jp.nephy.glados.core.Logger
 import jp.nephy.glados.core.audio.music.*
 import jp.nephy.glados.core.audio.music.PlayerEmoji
 import jp.nephy.glados.core.builder.Color
@@ -13,9 +14,12 @@ import jp.nephy.glados.core.builder.EmbedBuilder
 import jp.nephy.glados.core.builder.deleteQueue
 import jp.nephy.glados.core.builder.message
 import jp.nephy.glados.core.toMilliSecondString
-import jp.nephy.glados.logger
+import kotlinx.coroutines.experimental.delay
+import kotlinx.coroutines.experimental.launch
 import net.dv8tion.jda.core.exceptions.ErrorResponseException
-import kotlin.concurrent.thread
+import java.util.concurrent.TimeUnit
+
+private val logger = Logger("GLaDOS.Audio.EventMessage")
 
 class EventMessage(private val guildPlayer: GuildPlayer): AudioEventAdapter() {
     private fun buildEmbed(builder: EmbedBuilder, track: AudioTrack): EmbedBuilder {
@@ -95,7 +99,7 @@ class EventMessage(private val guildPlayer: GuildPlayer): AudioEventAdapter() {
                 buildEmbed(this, track)
             }
         }.queue {
-            thread {
+            launch {
                 PlayerEmoji.values().forEach { e ->
                     it.addReaction(e.emoji).queue({}, {})
                 }
@@ -103,10 +107,10 @@ class EventMessage(private val guildPlayer: GuildPlayer): AudioEventAdapter() {
                 var isDeleted = false
                 while (track.state == AudioTrackState.LOADING || track.state == AudioTrackState.SEEKING || track.state == AudioTrackState.PLAYING) {
                     if (isDeleted) {
-                        return@thread
+                        return@launch
                     }
 
-                    Thread.sleep(5000)
+                    delay(5, TimeUnit.SECONDS)
                     it.editMessage(buildEmbed(EmbedBuilder(), track).build()).queue({}, {
                         if (it is ErrorResponseException && it.errorCode == 10008) {
                             isDeleted = true
@@ -127,14 +131,6 @@ class EventMessage(private val guildPlayer: GuildPlayer): AudioEventAdapter() {
 
     override fun onTrackStuck(player: AudioPlayer, track: AudioTrack, thresholdMs: Long) {
         logger.info { "\"${track.info?.title}\" by ${track.info?.author} (${track.info?.length.toMilliSecondString()}) の再生がスタックしました. (閾値: ${thresholdMs.toMilliSecondString()})" }
-    }
-
-    override fun onPlayerPause(player: AudioPlayer) {
-        logger.info { "プレイヤー \"$player\" が一時停止しています." }
-    }
-
-    override fun onPlayerResume(player: AudioPlayer) {
-        logger.info { "プレイヤー \"$player\" が再開しました." }
     }
 
     override fun onTrackException(player: AudioPlayer, track: AudioTrack, exception: FriendlyException) {

@@ -10,6 +10,8 @@ import jp.nephy.glados.core.feature.subscription.CommandChannelType
 import jp.nephy.glados.core.feature.subscription.CommandEvent
 import jp.nephy.glados.core.feature.subscription.Listener
 import jp.nephy.glados.core.isBotOrSelfUser
+import kotlinx.coroutines.experimental.delay
+import kotlinx.coroutines.experimental.launch
 import net.dv8tion.jda.core.entities.Member
 import net.dv8tion.jda.core.events.message.guild.react.GuildMessageReactionAddEvent
 import net.dv8tion.jda.core.events.message.guild.react.GuildMessageReactionRemoveAllEvent
@@ -17,7 +19,6 @@ import net.dv8tion.jda.core.events.message.guild.react.GuildMessageReactionRemov
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
-import kotlin.concurrent.thread
 
 class VoteCommand: BotFeature() {
     private val timeRegex = "^(\\d+d)?(\\d+h)?(\\d+m)?(\\d+s)?$".toRegex()
@@ -49,7 +50,7 @@ class VoteCommand: BotFeature() {
         }
 
         val title = args.first()
-        val choices = args.drop(2).chunked(2)
+        val choices = args.asSequence().drop(2).chunked(2).toList()
 
         event.textChannel!!.message {
             embed {
@@ -72,8 +73,8 @@ class VoteCommand: BotFeature() {
             }
             votes[message.idLong] = mutableMapOf()
 
-            thread {
-                TimeUnit.SECONDS.sleep(duration.toLong())
+            launch {
+                delay(duration.toLong(), TimeUnit.SECONDS)
 
                 event.textChannel.message {
                     embed {

@@ -7,22 +7,24 @@ import jp.nephy.glados.core.builder.deleteQueue
 import jp.nephy.glados.core.builder.reply
 import jp.nephy.glados.core.feature.BotFeature
 import jp.nephy.glados.jda
-import jp.nephy.glados.logger
 import jp.nephy.glados.player
 import jp.nephy.utils.stackTraceString
+import kotlinx.coroutines.experimental.launch
 import net.dv8tion.jda.core.entities.*
 import net.dv8tion.jda.core.events.Event
 import net.dv8tion.jda.core.events.message.GenericMessageEvent
 import net.dv8tion.jda.core.events.message.MessageReceivedEvent
 import net.dv8tion.jda.core.events.message.MessageUpdateEvent
 import net.dv8tion.jda.core.hooks.ListenerAdapter
-import java.lang.reflect.Method
 import java.util.concurrent.CopyOnWriteArrayList
+import kotlin.reflect.KFunction
+
+private val logger = Logger("GLaDOS.Command")
 
 data class CommandSubscription(
         override val annotation: Command,
         override val instance: BotFeature,
-        override val method: Method,
+        override val function: KFunction<*>,
         override val targetGuilds: List<GLaDOSConfig.GuildConfig>
 ): GuildSpecificSubscription<Command>
 
@@ -45,10 +47,10 @@ enum class CommandPermission {
     Anyone, AdminOnly, OwnerOnly
 }
 
-enum class CommandChannelType(val correspondings: Array<ChannelType>) {
-    Any(arrayOf(ChannelType.TEXT, ChannelType.PRIVATE)),
-    TextChannel(arrayOf(ChannelType.TEXT)),
-    PrivateMessage(arrayOf(ChannelType.PRIVATE))
+enum class CommandChannelType(vararg val correspondings: ChannelType) {
+    Any(ChannelType.TEXT, ChannelType.PRIVATE),
+    TextChannel(ChannelType.TEXT),
+    PrivateMessage(ChannelType.PRIVATE)
 }
 
 enum class CommandCasePolicy {
@@ -71,7 +73,9 @@ class CommandSubscriptionClient: SubscriptionClient<Command>, ListenerAdapter() 
             return
         }
 
-        handleMessage(event, event.message, event.channelType)
+        launch {
+            handleMessage(event, event.message, event.channelType)
+        }
     }
 
     override fun onMessageUpdate(event: MessageUpdateEvent) {
@@ -79,11 +83,13 @@ class CommandSubscriptionClient: SubscriptionClient<Command>, ListenerAdapter() 
             return
         }
 
-        handleMessage(event, event.message, event.channelType)
+        launch {
+            handleMessage(event, event.message, event.channelType)
+        }
     }
 
     private val space = "\\s+".toRegex()
-    private fun handleMessage(event: GenericMessageEvent, message: Message, channelType: ChannelType) {
+    private suspend fun handleMessage(event: GenericMessageEvent, message: Message, channelType: ChannelType) {
         val text = message.contentDisplay
 
         loop@ for (subscription in subscriptions) {
@@ -104,20 +110,20 @@ class CommandSubscriptionClient: SubscriptionClient<Command>, ListenerAdapter() 
             val names = arrayOf(if (subscription.annotation.command.isNotBlank()) {
                 subscription.annotation.command
             } else {
-                subscription.method.name
+                subscription.function.name
             }) + subscription.annotation.aliases
             val commandNames = names.map { "$prefix$it" }
             val primaryCommandName = commandNames.first()
             val args = when (subscription.annotation.case) {
                 CommandCasePolicy.Strict -> {
-                    commandNames.filter {
+                    commandNames.asSequence().filter {
                         text.split(space).first() == it
                     }.sortedByDescending { it.length }.map {
                         text.removePrefix(it).trim()
                     }.firstOrNull()
                 }
                 CommandCasePolicy.Ignore -> {
-                    commandNames.filter {
+                    commandNames.asSequence().filter {
                         text.split(space).first().equals(it, true)
                     }.sortedByDescending { it.length }.map {
                         "^$it".toRegex(RegexOption.IGNORE_CASE).replace(text, "")
@@ -246,6 +252,7 @@ class CommandSubscriptionClient: SubscriptionClient<Command>, ListenerAdapter() 
 
             try {
                 subscription.execute(commandEvent)
+                logger.trace { "${subscription.instance.javaClass.simpleName}#${subscription.function.name} が実行されました. (${event.guild?.name})" }
                 return
             } catch (e: Exception) {
                 commandEvent.reply {

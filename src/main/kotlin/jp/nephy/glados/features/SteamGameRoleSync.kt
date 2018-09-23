@@ -6,21 +6,24 @@ import com.lukaspradel.steamapi.webapi.client.SteamWebApiClient
 import com.lukaspradel.steamapi.webapi.request.builders.SteamWebApiRequestFactory
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.apache.Apache
+import io.ktor.client.request.get
 import io.ktor.client.request.header
 import jp.nephy.glados.config
+import jp.nephy.glados.core.addRole
 import jp.nephy.glados.core.feature.BotFeature
 import jp.nephy.glados.core.feature.subscription.Listener
 import jp.nephy.glados.core.hasRole
 import jp.nephy.glados.core.isBotOrSelfUser
+import jp.nephy.glados.core.removeRole
 import jp.nephy.glados.secret
 import jp.nephy.jsonkt.*
-import jp.nephy.utils.getSync
-import jp.nephy.utils.parseJson
+import kotlinx.coroutines.experimental.CancellationException
+import kotlinx.coroutines.experimental.delay
+import kotlinx.coroutines.experimental.launch
 import net.dv8tion.jda.core.Permission
 import net.dv8tion.jda.core.entities.Member
 import net.dv8tion.jda.core.events.ReadyEvent
 import java.util.concurrent.TimeUnit
-import kotlin.concurrent.thread
 
 class SteamGameRoleSync: BotFeature() {
     companion object {
@@ -30,20 +33,27 @@ class SteamGameRoleSync: BotFeature() {
 
     @Listener
     override fun onReady(event: ReadyEvent) {
-        thread(name = "Steam Game Role Synchronizer") {
+        launch {
             while (true) {
                 try {
                     synchronize(event)
+                } catch (e: CancellationException) {
+                    break
                 } catch (e: Exception) {
                     logger.error(e) { "ゲームロールの同期中にエラーが発生しました." }
                 }
-                TimeUnit.MINUTES.sleep(3)
+
+                try {
+                    delay(3, TimeUnit.MINUTES)
+                } catch (e: CancellationException) {
+                    break
+                }
                 profileCache.clear()
             }
         }
     }
 
-    private fun synchronize(event: ReadyEvent) {
+    private suspend fun synchronize(event: ReadyEvent) {
         event.jda.guilds.forEach { guild ->
             if (!profileCache.containsKey(guild.idLong)) {
                 profileCache[guild.idLong] = mutableMapOf()
@@ -69,7 +79,7 @@ class SteamGameRoleSync: BotFeature() {
                 // ignoreロールのユーザからロールを消す
                 if (ignoreGameRole != null && member.hasRole(ignoreGameRole)) {
                     gameRoles.filter { member.hasRole(it.idLong) }.forEach {
-                        guild.controller.removeSingleRoleFromMember(member, it).queue()
+                        member.removeRole(it)
                     }
                     return@memberLoop
                 }
@@ -100,10 +110,10 @@ class SteamGameRoleSync: BotFeature() {
                         }
 
                         create.queue {
-                            guild.controller.addSingleRoleToMember(member, it).queue()
+                            member.addRole(it)
                         }
                     } else if (!member.hasRole(role.idLong)) {
-                        guild.controller.addSingleRoleToMember(member, role).queue()
+                        member.addRole(role)
                     }
                 }
             }
@@ -113,17 +123,17 @@ class SteamGameRoleSync: BotFeature() {
     // TODO: OkHttp
     private val httpClient = HttpClient(Apache)
 
-    private fun Member.getUserProfile(): DiscordUserProfile? {
+    private suspend fun Member.getUserProfile(): DiscordUserProfile? {
         val token = config.forGuild(guild)?.stringOption("client_token", "")
         if (token.isNullOrBlank()) {
             return null
         }
 
         return try {
-            val response = httpClient.getSync("https://discordapp.com/api/v6/users/${user.id}/profile") {
+            val response = httpClient.get<String>("https://discordapp.com/api/v6/users/${user.id}/profile") {
                 header("Authorization", token!!)
             }
-            return response.parseJson()
+            return response.parse()
         } catch (e: Exception) {
             logger.error(e) { "プロフィールの取得に失敗しました" }
             null

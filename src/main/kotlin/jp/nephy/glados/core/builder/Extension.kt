@@ -3,11 +3,12 @@ package jp.nephy.glados.core.builder
 import com.jagrosh.jdautilities.commons.waiter.EventWaiter
 import jp.nephy.glados.core.builder.prompt.PromptBuilder
 import jp.nephy.glados.core.feature.subscription.CommandEvent
+import kotlinx.coroutines.experimental.delay
+import kotlinx.coroutines.experimental.launch
 import net.dv8tion.jda.core.entities.*
 import net.dv8tion.jda.core.events.Event
 import net.dv8tion.jda.core.requests.restaction.MessageAction
 import java.util.concurrent.TimeUnit
-import kotlin.concurrent.thread
 
 fun CommandEvent.reply(operation: SendMessageWrapper.() -> Unit): MessageAction {
     return SendMessageWrapper(channel, user).apply(operation).build()
@@ -44,8 +45,8 @@ fun TextChannel.prompt(to: Member, operation: PromptBuilder.() -> Unit) {
 fun MessageAction.deleteQueue(delay: Long? = null, unit: TimeUnit = TimeUnit.SECONDS, then: (Message) -> Unit = { }) {
     queue {
         if (delay != null) {
-            thread {
-                unit.sleep(delay)
+            launch {
+                kotlinx.coroutines.experimental.delay(delay, unit)
                 it.delete().queue({}, {})
             }
         } else {
@@ -58,8 +59,8 @@ fun MessageAction.deleteQueue(delay: Long? = null, unit: TimeUnit = TimeUnit.SEC
 inline fun <reified T: Event> EventWaiter.wait(noinline condition: T.() -> Boolean = { true }, timeout: Long? = null, noinline whenTimeout: () -> Unit = { }, noinline operation: T.() -> Unit) {
     var stop = false
     if (timeout != null) {
-        thread(name = "Check Timeout") {
-            Thread.sleep(timeout)
+        launch {
+            delay(timeout, TimeUnit.MILLISECONDS)
             stop = true
             whenTimeout()
         }

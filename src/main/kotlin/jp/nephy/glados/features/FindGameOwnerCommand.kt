@@ -5,6 +5,7 @@ import com.lukaspradel.steamapi.data.json.ownedgames.GetOwnedGames
 import com.lukaspradel.steamapi.webapi.request.builders.SteamWebApiRequestFactory
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.apache.Apache
+import io.ktor.client.request.get
 import jp.nephy.glados.core.builder.Color
 import jp.nephy.glados.core.builder.deleteQueue
 import jp.nephy.glados.core.builder.edit
@@ -14,14 +15,12 @@ import jp.nephy.glados.core.feature.subscription.Command
 import jp.nephy.glados.core.feature.subscription.CommandChannelType
 import jp.nephy.glados.core.feature.subscription.CommandEvent
 import jp.nephy.jsonkt.*
-import jp.nephy.utils.getSync
-import jp.nephy.utils.readTextSync
 
 class FindGameOwnerCommand: BotFeature() {
     private val httpClient = HttpClient(Apache)
 
     @Command(channelType = CommandChannelType.TextChannel, description = "指定されたSteamゲームを所有しているメンバーにメンションを飛ばします。", args = "<App ID>")
-    fun find(event: CommandEvent) {
+    suspend fun find(event: CommandEvent) {
         val appId = event.args.toIntOrNull() ?: return event.reply {
             embed {
                 title("AppIDは数値のみ入力可能です。")
@@ -31,9 +30,8 @@ class FindGameOwnerCommand: BotFeature() {
         }.deleteQueue(30)
 
         val model = try {
-            val response = httpClient.getSync("https://store.steampowered.com/api/appdetails/?appids=$appId")
-            val json = JsonKt.toJsonObject(response.readTextSync())
-            JsonKt.parse<SteamAppDetails>(json.values.first().toJsonObject())
+            val response = httpClient.get<String>("https://store.steampowered.com/api/appdetails/?appids=$appId")
+            response.toJsonObject().values.first().toJsonObject().parse<SteamAppDetails>()
         } catch (e: Exception) {
             return event.reply {
                 embed {

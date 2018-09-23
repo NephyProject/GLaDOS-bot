@@ -9,14 +9,20 @@ import jp.nephy.glados.core.feature.subscription.Listener
 import jp.nephy.glados.core.isFalseOrNull
 import jp.nephy.glados.model.MemberModel
 import jp.nephy.glados.secret
-import jp.nephy.utils.*
+import jp.nephy.jsonkt.collection
+import jp.nephy.jsonkt.database
+import jp.nephy.jsonkt.findAndParse
+import jp.nephy.jsonkt.mongodb
+import jp.nephy.utils.StringLinkedSingleCache
+import kotlinx.coroutines.experimental.CancellationException
+import kotlinx.coroutines.experimental.delay
+import kotlinx.coroutines.experimental.launch
 import net.dv8tion.jda.core.entities.Guild
 import net.dv8tion.jda.core.entities.TextChannel
 import net.dv8tion.jda.core.events.ReadyEvent
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
-import kotlin.concurrent.thread
 
 class HappyBirthday: BotFeature() {
     private val db = mongodb(secret.forKey("mongodb_host")).database("bot")
@@ -41,8 +47,8 @@ class HappyBirthday: BotFeature() {
         }.format(Date())
 
     private fun watch(guild: Guild, channel: TextChannel) {
-        thread(name = "Happy Birthday Watcher") {
-            while (true) {
+        launch {
+            while (isActive) {
                 try {
                     if (lastDate != date) {
                         val calendar = Calendar.getInstance(timezone)
@@ -71,10 +77,16 @@ class HappyBirthday: BotFeature() {
 
                         lastDate = date
                     }
+                } catch (e: CancellationException) {
+                    break
                 } catch (e: Exception) {
                     logger.error(e) { "誕生日のチェック中にエラーが発生しました." }
-                } finally {
-                    TimeUnit.MINUTES.sleep(1)
+                }
+
+                try {
+                    delay(1, TimeUnit.MINUTES)
+                } catch (e: CancellationException) {
+                    break
                 }
             }
         }

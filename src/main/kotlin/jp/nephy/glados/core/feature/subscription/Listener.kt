@@ -1,19 +1,26 @@
 package jp.nephy.glados.core.feature.subscription
 
 import jp.nephy.glados.core.GLaDOSConfig
+import jp.nephy.glados.core.Logger
 import jp.nephy.glados.core.feature.BotFeature
 import jp.nephy.glados.core.nullableGuild
-import jp.nephy.glados.logger
+import kotlinx.coroutines.experimental.CancellationException
+import kotlinx.coroutines.experimental.launch
 import net.dv8tion.jda.core.events.Event
 import net.dv8tion.jda.core.hooks.ListenerAdapter
 import java.lang.reflect.InvocationTargetException
-import java.lang.reflect.Method
 import java.util.concurrent.CopyOnWriteArrayList
+import kotlin.reflect.KFunction
+import kotlin.reflect.full.isSubclassOf
+import kotlin.reflect.full.valueParameters
+import kotlin.reflect.jvm.jvmErasure
+
+private val logger = Logger("GLaDOS.Listener")
 
 data class ListenerSubscription(
         override val annotation: Listener,
         override val instance: BotFeature,
-        override val method: Method,
+        override val function: KFunction<*>,
         override val targetGuilds: List<GLaDOSConfig.GuildConfig>
 ): GuildSpecificSubscription<Listener>
 
@@ -33,21 +40,27 @@ class ListenerSubscriptionClient: SubscriptionClient<Listener>, ListenerAdapter(
     override fun onGenericEvent(event: Event) {
         val guild = event.nullableGuild
 
-        subscriptions.filter {
+        subscriptions.asSequence().filter {
             guild == null || it.targetGuilds.isEmpty() || it.targetGuilds.any { it.id == guild.idLong }
         }.filter {
-            it.method.parameterTypes.first() == event.javaClass
-        }.forEach {
-            try {
-                it.execute(event)
-            } catch (e: Exception) {
-                val exception = if (e is InvocationTargetException) {
-                    e.targetException
-                } else {
-                    e
-                }
+            val required = it.function.valueParameters.first().type.jvmErasure
+            event::class.isSubclassOf(required)
+        }.toList().forEach {
+            launch {
+                try {
+                    it.execute(event)
+                    logger.trace { "${it.instance.javaClass.simpleName}#${it.function.name} が実行されました. (${guild?.name})" }
+                } catch (e: CancellationException) {
+                    return@launch
+                } catch (e: Exception) {
+                    val exception = if (e is InvocationTargetException) {
+                        e.targetException
+                    } else {
+                        e
+                    }
 
-                logger.error(exception) { "[${it.instance.javaClass.name}#${it.method.name}] 実行中に例外が発生しました." }
+                    logger.error(exception) { "[${it.instance.javaClass.simpleName}#${it.function.name}] 実行中に例外が発生しました." }
+                }
             }
         }
     }
