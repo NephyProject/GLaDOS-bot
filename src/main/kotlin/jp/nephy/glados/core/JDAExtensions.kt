@@ -42,7 +42,7 @@ fun Member.hasRole(role: Role): Boolean {
     return hasRole(role.idLong)
 }
 
-fun TextChannel.fetchMessages(limit: Int): List<Message> {
+fun TextChannel.getHistory(limit: Int): List<Message> {
     return iterableHistory.cache(false).take(limit)
 }
 
@@ -62,12 +62,12 @@ fun Member.isGLaDOSOwner(): Boolean {
 
 fun Member.addRole(role: Role) {
     if (!hasRole(role)) {
-        guild.controller.addSingleRoleToMember(this, role)
+        guild.controller.addSingleRoleToMember(this, role).queue()
     }
 }
 
 fun Member.removeRole(role: Role) {
     if (hasRole(role)) {
-        guild.controller.removeSingleRoleFromMember(this, role)
+        guild.controller.removeSingleRoleFromMember(this, role).queue()
     }
 }
