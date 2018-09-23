@@ -30,9 +30,9 @@ val Member.fullName: String
 val Member.fullNameWithoutGuild: String
     get() = "$effectiveName (${user.displayName})"
 val Message.fullName: String
-    get() = "${member.fullNameWithoutGuild} ${textChannel?.fullName}"
+    get() = "${member?.fullNameWithoutGuild ?: author.displayName} ${textChannel?.fullName ?: channel.name}"
 val Message.fullNameWithoutGuild: String
-    get() = "${member.fullNameWithoutGuild} ${textChannel?.fullNameWithoutGuild}"
+    get() = "${member?.fullNameWithoutGuild ?: author.displayName} ${textChannel?.fullNameWithoutGuild ?: channel.name}"
 
 fun Member.hasRole(id: Long): Boolean {
     return roles.any { it.idLong == id }
