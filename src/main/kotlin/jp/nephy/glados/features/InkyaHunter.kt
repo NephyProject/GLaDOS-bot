@@ -4,7 +4,7 @@ import jp.nephy.glados.config
 import jp.nephy.glados.core.addRole
 import jp.nephy.glados.core.feature.BotFeature
 import jp.nephy.glados.core.feature.subscription.Listener
-import jp.nephy.glados.core.feature.subscription.Pool
+import jp.nephy.glados.core.feature.subscription.Loop
 import jp.nephy.glados.core.removeRole
 import net.dv8tion.jda.core.entities.Guild
 import net.dv8tion.jda.core.entities.Member
@@ -19,12 +19,14 @@ class InkyaHunter: BotFeature() {
 
     @Listener
     override fun onReady(event: ReadyEvent) {
-        event.jda.guilds.forEach {
-            enabledGuilds[it] = config.forGuild(it)?.role("inkya") ?: return@forEach
+        for (it in config.guilds) {
+            val role = it.value.role("inkya") ?: continue
+            enabledGuilds[role.guild] = role
+            logger.debug { "${it.key}: 陰キャロールを追加しました." }
         }
     }
 
-    @Pool(10, TimeUnit.SECONDS)
+    @Loop(10, TimeUnit.SECONDS)
     fun checkRole() {
         // 10秒おきに陰キャロールが適切かを調べる
         try {
@@ -55,7 +57,7 @@ class InkyaHunter: BotFeature() {
     override fun onGuildMemberRoleRemove(event: GuildMemberRoleRemoveEvent) {
         val inkyaRole = config.forGuild(event.guild)?.role("inkya") ?: return
 
-        event.roles.filter { it.idLong == inkyaRole.idLong }.forEach {
+        if (event.roles.any { it.idLong == inkyaRole.idLong }) {
             if (event.member.voiceState.inVoiceChannel() && event.member.voiceState.channel != event.guild.afkChannel && (event.member.voiceState.isSelfMuted || event.member.voiceState.isGuildMuted)) {
                 event.member.addInkyaRole()
             }

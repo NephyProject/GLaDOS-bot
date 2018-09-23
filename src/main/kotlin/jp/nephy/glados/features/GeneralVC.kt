@@ -4,7 +4,7 @@ import jp.nephy.glados.config
 import jp.nephy.glados.core.addRole
 import jp.nephy.glados.core.feature.BotFeature
 import jp.nephy.glados.core.feature.subscription.Listener
-import jp.nephy.glados.core.feature.subscription.Pool
+import jp.nephy.glados.core.feature.subscription.Loop
 import jp.nephy.glados.core.isBotOrSelfUser
 import jp.nephy.glados.core.removeRole
 import net.dv8tion.jda.core.entities.Guild
@@ -27,7 +27,7 @@ class GeneralVC: BotFeature() {
         }
     }
 
-    @Pool(10, TimeUnit.SECONDS)
+    @Loop(10, TimeUnit.SECONDS)
     fun checkRole() {
         // 10秒おきにロールが適切かを調べる
         try {

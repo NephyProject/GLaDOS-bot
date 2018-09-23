@@ -1,10 +1,12 @@
 package jp.nephy.glados.core.audio
 
-import jp.nephy.glados.logger
+import jp.nephy.glados.core.Logger
 import net.dv8tion.jda.core.audio.hooks.ConnectionListener
 import net.dv8tion.jda.core.audio.hooks.ConnectionStatus
 import net.dv8tion.jda.core.entities.Guild
 import net.dv8tion.jda.core.entities.User
+
+private val logger = Logger("GLaDOS.ConnectionListener")
 
 class ConnectionListenerImpl(private val guild: Guild): ConnectionListener {
     override fun onStatusChange(status: ConnectionStatus) {

@@ -37,11 +37,11 @@ class ClassPath(val packageName: String) {
             "jar" -> {
                 (root.openConnection() as JarURLConnection).jarFile.use {
                     it.entries().toList()
-                }.filter {
+                }.asSequence().filter {
                     it.name.startsWith(jarResourceName)
                 }.map {
                     ClassEntry(it.name, it.name.split(jarPathSeparator).last())
-                }.loadClasses<T>(jarResourceName, jarPathSeparator)
+                }.toList().loadClasses<T>(jarResourceName, jarPathSeparator)
             }
             else -> throw UnsupportedOperationException("Unknown procotol: ${root.protocol}")
         }.sortedBy { it.canonicalName }
@@ -54,9 +54,11 @@ class ClassPath(val packageName: String) {
     @Suppress("UNCHECKED_CAST")
     inline fun <reified T> List<ClassEntry>.loadClasses(resourceName: String, pathSeparator: Char): List<Class<T>> {
         return filter { classNamePattern.containsMatchIn(it.filename) }
+                .asSequence()
                 .map { "$packageName${it.path.split(resourceName).last().replace(pathSeparator, packageSeparator).removeSuffix(".class")}" }
                 .map { classLoader.loadClass(it) }
                 .filter { it.superclass == T::class.java }
                 .map { it as Class<T> }
+                .toList()
     }
 }

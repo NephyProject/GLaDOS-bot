@@ -22,13 +22,14 @@ fun Boolean?.isFalseOrNull(): Boolean {
 class GLaDOSConfig private constructor(override val json: JsonObject): JsonModel {
     companion object {
         fun load(path: Path): GLaDOSConfig {
-            return GLaDOSConfig(JsonKt.toJsonObject(path))
+            return GLaDOSConfig(path.toJsonObject())
         }
     }
 
     val token by json.byString
     val ownerId by json.byNullableLong("owner_id")
     val prefix by json.byString { "!" }
+    val parallelism by json.byNullableInt
     val guilds by json.byLambda { jsonObject.map { it.key to GuildConfig(it.value.jsonObject) }.toMap() }
 
     fun forGuild(guild: Guild?): GuildConfig? {
@@ -84,7 +85,7 @@ class GLaDOSConfig private constructor(override val json: JsonObject): JsonModel
 class SecretConfig private constructor(override val json: JsonObject): JsonModel {
     companion object {
         fun load(path: Path): SecretConfig {
-            return SecretConfig(JsonKt.toJsonObject(path))
+            return SecretConfig(path.toJsonObject())
         }
     }
 

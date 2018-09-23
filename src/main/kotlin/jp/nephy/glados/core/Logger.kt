@@ -1,20 +1,26 @@
 package jp.nephy.glados.core
 
+import jp.nephy.SlackWebhook
 import jp.nephy.glados.isDebugMode
 import jp.nephy.glados.secret
-import jp.nephy.utils.SlackWebhook
-import jp.nephy.utils.logger
 import jp.nephy.utils.stackTraceString
+import mu.KotlinLogging
 import org.slf4j.event.Level
 
 class Logger(private val name: String, private val useSlack: Boolean = true) {
     private val slack = SlackWebhook(secret.forKey("slack_webhook_url"))
-    private val logger = logger(name)
+    private val logger = KotlinLogging.logger(name)
 
     private fun (() -> Any).toStringSafe() = try {
         invoke().toString()
     } catch (e: Exception) {
         ""
+    }
+
+    fun trace(msg: () -> Any) {
+        if (logger.isTraceEnabled) {
+            logger.trace(msg)
+        }
     }
 
     fun debug(msg: () -> Any) {

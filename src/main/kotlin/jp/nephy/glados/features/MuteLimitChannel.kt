@@ -3,7 +3,7 @@ package jp.nephy.glados.features
 import jp.nephy.glados.config
 import jp.nephy.glados.core.feature.BotFeature
 import jp.nephy.glados.core.feature.subscription.Listener
-import jp.nephy.glados.core.feature.subscription.Pool
+import jp.nephy.glados.core.feature.subscription.Loop
 import jp.nephy.glados.core.fullName
 import jp.nephy.glados.core.isBotOrSelfUser
 import jp.nephy.utils.IntLinkedSingleCache
@@ -12,6 +12,7 @@ import net.dv8tion.jda.core.entities.Member
 import net.dv8tion.jda.core.entities.VoiceChannel
 import net.dv8tion.jda.core.events.ReadyEvent
 import net.dv8tion.jda.core.events.guild.voice.GuildVoiceJoinEvent
+import net.dv8tion.jda.core.events.guild.voice.GuildVoiceLeaveEvent
 import net.dv8tion.jda.core.events.guild.voice.GuildVoiceMoveEvent
 import net.dv8tion.jda.core.events.guild.voice.GuildVoiceSelfMuteEvent
 import java.util.concurrent.TimeUnit
@@ -31,7 +32,7 @@ class MuteLimitChannel: BotFeature() {
         }
     }
 
-    @Pool(5, TimeUnit.SECONDS)
+    @Loop(5, TimeUnit.SECONDS)
     fun checkInkya() {
         try {
             muteMembers.toMap().forEach {
@@ -103,5 +104,10 @@ class MuteLimitChannel: BotFeature() {
         if (enabledGuilds[event.guild] == event.channelJoined && event.voiceState.isSelfMuted) {
             event.member.startMuting()
         }
+    }
+
+    @Listener
+    override fun onGuildVoiceLeave(event: GuildVoiceLeaveEvent) {
+        event.member.stopMuting()
     }
 }

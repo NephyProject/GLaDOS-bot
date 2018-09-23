@@ -4,12 +4,13 @@ import com.sedmelluq.discord.lavaplayer.player.AudioPlayer
 import com.sedmelluq.discord.lavaplayer.player.event.AudioEventAdapter
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack
 import com.sedmelluq.discord.lavaplayer.track.AudioTrackEndReason
+import jp.nephy.glados.core.Logger
 import jp.nephy.glados.core.audio.music.*
 import jp.nephy.glados.core.isNoOneExceptSelf
-import jp.nephy.glados.logger
 import jp.nephy.utils.removeAtOrNull
 import jp.nephy.utils.sumBy
 
+private val logger = Logger("GLaDOS.Audio.TrackControls")
 
 class TrackControls(private val guildPlayer: GuildPlayer, private val player: AudioPlayer): AudioEventAdapter() {
     private val userRequestQueue = mutableListOf<AudioTrack>()

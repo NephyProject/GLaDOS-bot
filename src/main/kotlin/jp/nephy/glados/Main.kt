@@ -6,6 +6,7 @@ import jp.nephy.glados.core.*
 import jp.nephy.glados.core.audio.music.GuildPlayer
 import jp.nephy.glados.core.feature.FeatureManager
 import jp.nephy.utils.linkedCacheDir
+import kotlinx.coroutines.experimental.CommonPool
 import net.dv8tion.jda.core.AccountType
 import net.dv8tion.jda.core.JDA
 import net.dv8tion.jda.core.JDABuilder
@@ -13,19 +14,19 @@ import net.dv8tion.jda.core.entities.Game
 import net.dv8tion.jda.core.entities.Guild
 import java.nio.file.Paths
 
-val jda by lazy { jdaInternal }
-private lateinit var jdaInternal: JDA
-val eventWaiter by lazy { eventWaiterInternal }
-private lateinit var eventWaiterInternal: EventWaiter
+internal lateinit var jda: JDA
+    private set
+lateinit var eventWaiter: EventWaiter
+    private set
 
-val isDebugMode by lazy { isDebugModeInternal }
-private var isDebugModeInternal = false
-val config by lazy { configInternal }
-private lateinit var configInternal: GLaDOSConfig
-val secret by lazy { secretInternal }
-private lateinit var secretInternal: SecretConfig
+internal var isDebugMode = false
+    private set
+internal lateinit var config: GLaDOSConfig
+    private set
+internal lateinit var secret: SecretConfig
+    private set
 
-val logger by lazy { Logger("GLaDOS") }
+private val logger by lazy { Logger("GLaDOS") }
 
 private val players = mutableMapOf<Long, GuildPlayer>()
 val Guild.player: GuildPlayer?
@@ -46,11 +47,11 @@ val Guild.player: GuildPlayer?
 
 fun main(args: Array<String>) {
     linkedCacheDir = Paths.get("cache")
-    isDebugModeInternal = args.contains("--debug")
+    isDebugMode = args.contains("--debug")
 
-    secretInternal = SecretConfig.load(secretConfigPath)
+    secret = SecretConfig.load(secretConfigPath)
 
-    configInternal = if (isDebugMode) {
+    config = if (isDebugMode) {
         logger.debug { "デバックモードで起動しています." }
         GLaDOSConfig.load(developmentConfigPath)
     } else {
@@ -66,9 +67,13 @@ fun main(args: Array<String>) {
         return
     }
 
-    eventWaiterInternal = EventWaiter()
+    if (config.parallelism != null) {
+        System.setProperty(CommonPool.DEFAULT_PARALLELISM_PROPERTY_NAME, config.parallelism.toString())
+    }
 
-    jdaInternal = JDABuilder(AccountType.BOT).apply {
+    eventWaiter = EventWaiter()
+
+    jda = JDABuilder(AccountType.BOT).apply {
         setToken(config.token)
         setAudioSendFactory(NativeAudioSendFactory())
         setGame(Game.playing("Starting..."))

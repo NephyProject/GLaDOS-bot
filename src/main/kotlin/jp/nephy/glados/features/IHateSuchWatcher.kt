@@ -7,17 +7,19 @@ import jp.nephy.glados.core.feature.BotFeature
 import jp.nephy.glados.core.feature.subscription.Listener
 import jp.nephy.glados.core.isBotOrSelfUser
 import jp.nephy.glados.secret
-import jp.nephy.penicillin.OfficialClient
 import jp.nephy.penicillin.PenicillinClient
+import jp.nephy.penicillin.core.emulation.OfficialClient
 import net.dv8tion.jda.core.entities.TextChannel
 import net.dv8tion.jda.core.events.message.guild.GuildMessageReceivedEvent
 import net.dv8tion.jda.core.events.message.guild.GuildMessageUpdateEvent
 import net.dv8tion.jda.core.events.message.guild.react.GuildMessageReactionAddEvent
 
 class IHateSuchWatcher: BotFeature() {
-    private val twitter = PenicillinClient.build {
-        application(OfficialClient.TwitterForiPad)
-        token(secret.forKey("twitter_access_token"), secret.forKey("twitter_access_token_secret"))
+    private val twitter = PenicillinClient {
+        account {
+            application(OfficialClient.OAuth1a.TwitterForiPad)
+            token(secret.forKey("twitter_access_token"), secret.forKey("twitter_access_token_secret"))
+        }
     }
     private val twitterUrl = "(?:http(?:s)?://)?(?:m|mobile)?twitter\\.com/((?:\\w|_){1,16})/status/(\\d+)".toRegex()
 
@@ -28,7 +30,7 @@ class IHateSuchWatcher: BotFeature() {
             return
         }
 
-        val message = MessageCollector.get(event.messageIdLong) ?: return
+        val message = MessageCollector.latest(event.messageIdLong) ?: return
         val match = twitterUrl.find(message.contentDisplay)
         if (match == null) {
             logger.info { "Twitter URLパターンに一致しないメッセージです: ${message.contentDisplay}" }
