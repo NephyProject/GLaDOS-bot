@@ -1,6 +1,13 @@
-src/test/
+glados.xml
+glados.properties
 
+config.prod.json
+config.dev.json
+config.secret.json
 logs/
 tmp/
 tmp_debug/
-src/main/kotlin/jp/nephy/glados/Main.kt
+cache/
+
+src/main/kotlin/jp/nephy/glados/features/Audit.kt
+src/main/kotlin/jp/nephy/glados/core/audio/AudioReceiveHandlerImpl.kt
