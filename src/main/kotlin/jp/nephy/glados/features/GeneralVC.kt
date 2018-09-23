@@ -14,10 +14,11 @@ import net.dv8tion.jda.core.events.ReadyEvent
 import net.dv8tion.jda.core.events.guild.voice.GuildVoiceJoinEvent
 import net.dv8tion.jda.core.events.guild.voice.GuildVoiceLeaveEvent
 import net.dv8tion.jda.core.events.guild.voice.GuildVoiceMoveEvent
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
 class GeneralVC: BotFeature() {
-    private val roleEnabledGuilds = mutableMapOf<Guild, Role>()
+    private val roleEnabledGuilds = ConcurrentHashMap<Guild, Role>()
 
     @Listener
     override fun onReady(event: ReadyEvent) {

@@ -15,6 +15,7 @@ import net.dv8tion.jda.core.events.guild.voice.GuildVoiceJoinEvent
 import net.dv8tion.jda.core.events.guild.voice.GuildVoiceLeaveEvent
 import net.dv8tion.jda.core.events.guild.voice.GuildVoiceMoveEvent
 import net.dv8tion.jda.core.events.guild.voice.GuildVoiceSelfMuteEvent
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
 class MuteLimitChannel: BotFeature() {
@@ -22,7 +23,7 @@ class MuteLimitChannel: BotFeature() {
         var maxMuteSeconds by IntLinkedSingleCache { 5 * 60 }
     }
 
-    private val enabledGuilds = mutableMapOf<Guild, VoiceChannel>()
+    private val enabledGuilds = ConcurrentHashMap<Guild, VoiceChannel>()
 
     @Listener
     override fun onReady(event: ReadyEvent) {
@@ -51,7 +52,7 @@ class MuteLimitChannel: BotFeature() {
         }
     }
 
-    private val muteMembers = mutableMapOf<Member, Int>()
+    private val muteMembers = ConcurrentHashMap<Member, Int>()
     private fun Member.startMuting() {
         if (user.isBotOrSelfUser) {
             return

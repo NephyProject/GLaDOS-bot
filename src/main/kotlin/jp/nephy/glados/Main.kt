@@ -13,6 +13,7 @@ import net.dv8tion.jda.core.JDABuilder
 import net.dv8tion.jda.core.entities.Game
 import net.dv8tion.jda.core.entities.Guild
 import java.nio.file.Paths
+import java.util.concurrent.ConcurrentHashMap
 
 internal lateinit var jda: JDA
     private set
@@ -28,7 +29,7 @@ internal lateinit var secret: SecretConfig
 
 private val logger by lazy { Logger("GLaDOS") }
 
-private val players = mutableMapOf<Long, GuildPlayer>()
+private val players = ConcurrentHashMap<Long, GuildPlayer>()
 val Guild.player: GuildPlayer?
     get() = synchronized(players) {
         players.getOrPut(idLong) {

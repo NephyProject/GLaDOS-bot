@@ -13,9 +13,10 @@ import net.dv8tion.jda.core.events.guild.voice.GuildVoiceJoinEvent
 import net.dv8tion.jda.core.events.guild.voice.GuildVoiceMoveEvent
 import net.dv8tion.jda.core.events.guild.voice.GuildVoiceSelfMuteEvent
 import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 
 class NoMuteChannel: BotFeature() {
-    private val cooldowns = mutableMapOf<Long, Long>()
+    private val cooldowns = ConcurrentHashMap<Long, Long>()
 
     @Listener
     override fun onGuildVoiceJoin(event: GuildVoiceJoinEvent) {

@@ -23,12 +23,13 @@ import kotlinx.coroutines.experimental.launch
 import net.dv8tion.jda.core.Permission
 import net.dv8tion.jda.core.entities.Member
 import net.dv8tion.jda.core.events.ReadyEvent
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
 class SteamGameRoleSync: BotFeature() {
     companion object {
         val steamCient = SteamWebApiClient.SteamWebApiClientBuilder(secret.forKey("steam_api_key")).build()!!
-        val profileCache = mutableMapOf<Long, MutableMap<Long, DiscordUserProfile>>()
+        val profileCache = ConcurrentHashMap<Long, ConcurrentHashMap<Long, DiscordUserProfile>>()
     }
 
     @Listener
@@ -56,7 +57,7 @@ class SteamGameRoleSync: BotFeature() {
     private suspend fun synchronize(event: ReadyEvent) {
         event.jda.guilds.forEach { guild ->
             if (!profileCache.containsKey(guild.idLong)) {
-                profileCache[guild.idLong] = mutableMapOf()
+                profileCache[guild.idLong] = ConcurrentHashMap()
             }
 
             val guildConfig = config.forGuild(guild) ?: return@forEach

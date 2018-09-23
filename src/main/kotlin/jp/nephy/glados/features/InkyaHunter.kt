@@ -12,10 +12,11 @@ import net.dv8tion.jda.core.entities.Role
 import net.dv8tion.jda.core.events.ReadyEvent
 import net.dv8tion.jda.core.events.guild.member.GuildMemberRoleRemoveEvent
 import net.dv8tion.jda.core.events.guild.voice.*
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
 class InkyaHunter: BotFeature() {
-    private val enabledGuilds = mutableMapOf<Guild, Role>()
+    private val enabledGuilds = ConcurrentHashMap<Guild, Role>()
 
     @Listener
     override fun onReady(event: ReadyEvent) {

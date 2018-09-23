@@ -9,14 +9,15 @@ import jp.nephy.glados.core.audio.music.*
 import jp.nephy.glados.core.isNoOneExceptSelf
 import jp.nephy.utils.removeAtOrNull
 import jp.nephy.utils.sumBy
+import java.util.concurrent.CopyOnWriteArrayList
 
 private val logger = Logger("GLaDOS.Audio.TrackControls")
 
 class TrackControls(private val guildPlayer: GuildPlayer, private val player: AudioPlayer): AudioEventAdapter() {
-    private val userRequestQueue = mutableListOf<AudioTrack>()
-    private val autoPlaylistQueue = mutableListOf<AudioTrack>()
-    private val soundCloudQueue = mutableListOf<AudioTrack>()
-    private val nicoRankingQueue = mutableListOf<AudioTrack>()
+    private val userRequestQueue = CopyOnWriteArrayList<AudioTrack>()
+    private val autoPlaylistQueue = CopyOnWriteArrayList<AudioTrack>()
+    private val soundCloudQueue = CopyOnWriteArrayList<AudioTrack>()
+    private val nicoRankingQueue = CopyOnWriteArrayList<AudioTrack>()
 
     fun add(track: AudioTrack, justLoad: Boolean = false) {
         // ユーザリクエスト楽曲を優先して再生

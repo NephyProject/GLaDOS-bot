@@ -18,6 +18,8 @@ import net.dv8tion.jda.core.events.message.guild.react.GuildMessageReactionRemov
 import net.dv8tion.jda.core.events.message.guild.react.GuildMessageReactionRemoveEvent
 import java.text.SimpleDateFormat
 import java.util.*
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.TimeUnit
 
 class VoteCommand: BotFeature() {
@@ -71,7 +73,7 @@ class VoteCommand: BotFeature() {
             for (choice in choices) {
                 message.addReaction(choice.first()).complete()
             }
-            votes[message.idLong] = mutableMapOf()
+            votes[message.idLong] = ConcurrentHashMap()
 
             launch {
                 delay(duration.toLong(), TimeUnit.SECONDS)
@@ -111,13 +113,13 @@ class VoteCommand: BotFeature() {
         }.queue()
     }
 
-    private val votes = mutableMapOf<Long, MutableMap<String, MutableList<Member>>>()
+    private val votes = ConcurrentHashMap<Long, ConcurrentHashMap<String, CopyOnWriteArrayList<Member>>>()
 
     @Listener
     override fun onGuildMessageReactionAdd(event: GuildMessageReactionAddEvent) {
         if (event.messageIdLong in votes) {
             if (event.reactionEmote.name !in votes[event.messageIdLong]!!) {
-                votes[event.messageIdLong]!![event.reactionEmote.name] = mutableListOf()
+                votes[event.messageIdLong]!![event.reactionEmote.name] = CopyOnWriteArrayList()
             }
 
             votes[event.messageIdLong]!![event.reactionEmote.name]!!.add(event.member)
@@ -128,7 +130,7 @@ class VoteCommand: BotFeature() {
     override fun onGuildMessageReactionRemove(event: GuildMessageReactionRemoveEvent) {
         if (event.messageIdLong in votes) {
             if (event.reactionEmote.name in votes[event.messageIdLong]!!) {
-                votes[event.messageIdLong]!![event.reactionEmote.name] = mutableListOf()
+                votes[event.messageIdLong]!![event.reactionEmote.name] = CopyOnWriteArrayList()
             }
 
             votes[event.messageIdLong]!![event.reactionEmote.name]!!.remove(event.member)
@@ -138,7 +140,7 @@ class VoteCommand: BotFeature() {
     @Listener
     override fun onGuildMessageReactionRemoveAll(event: GuildMessageReactionRemoveAllEvent) {
         if (event.messageIdLong in votes) {
-            votes[event.messageIdLong] = mutableMapOf()
+            votes[event.messageIdLong] = ConcurrentHashMap()
         }
     }
 }

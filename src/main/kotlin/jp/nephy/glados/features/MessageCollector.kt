@@ -12,11 +12,12 @@ import net.dv8tion.jda.core.events.message.MessageReceivedEvent
 import net.dv8tion.jda.core.events.message.MessageUpdateEvent
 import net.dv8tion.jda.core.exceptions.InsufficientPermissionException
 import java.nio.file.Files
+import java.util.concurrent.ConcurrentHashMap
 
 class MessageCollector: BotFeature() {
     companion object {
-        private val cache = mutableMapOf<Long, Message>()
-        private val history = mutableMapOf<Long, Message?>()
+        private val cache = ConcurrentHashMap<Long, Message>()
+        private val history = ConcurrentHashMap<Long, Message?>()
 
         fun add(message: Message) {
             cache[message.idLong] = message

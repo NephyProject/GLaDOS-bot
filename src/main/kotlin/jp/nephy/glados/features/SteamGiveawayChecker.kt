@@ -20,6 +20,7 @@ import net.dv8tion.jda.core.entities.TextChannel
 import net.dv8tion.jda.core.events.ReadyEvent
 import net.dv8tion.jda.core.events.message.guild.GuildMessageDeleteEvent
 import java.net.URLDecoder
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.TimeUnit
 
 class SteamGiveawayChecker: BotFeature() {
@@ -50,12 +51,12 @@ class SteamGiveawayChecker: BotFeature() {
             "gamezito.com"
     )
 
-    private val channels = mutableListOf<TextChannel>()
+    private val channels = CopyOnWriteArrayList<TextChannel>()
 
     @Listener
     override fun onReady(event: ReadyEvent) {
         config.guilds.forEach {
-            channels.add(it.value.textChannel("giveaway") ?: return@forEach)
+            channels.add(it.value.textChannel("steam_giveaway") ?: return@forEach)
         }
 
         launch {
