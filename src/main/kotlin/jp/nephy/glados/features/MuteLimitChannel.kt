@@ -40,6 +40,11 @@ class MuteLimitChannel: BotFeature() {
                 muteMembers[it.key] = (muteMembers[it.key] ?: return@forEach) + 5
 
                 if (muteMembers[it.key]!! >= maxMuteSeconds) {
+                    if (!it.key.voiceState.inVoiceChannel()) {
+                        it.key.stopMuting()
+                        return@forEach
+                    }
+
                     it.key.guild.controller.moveVoiceMember(it.key, it.key.guild.afkChannel).queue { _ ->
                         it.key.stopMuting()
                     }
