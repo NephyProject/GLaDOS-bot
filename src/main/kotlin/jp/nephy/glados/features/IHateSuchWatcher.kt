@@ -1,10 +1,10 @@
 package jp.nephy.glados.features
 
-import jp.nephy.glados.config
 import jp.nephy.glados.core.builder.Color
 import jp.nephy.glados.core.builder.message
 import jp.nephy.glados.core.feature.BotFeature
 import jp.nephy.glados.core.feature.subscription.Listener
+import jp.nephy.glados.core.feature.textChannelsLazy
 import jp.nephy.glados.core.isBotOrSelfUser
 import jp.nephy.glados.secret
 import jp.nephy.penicillin.PenicillinClient
@@ -12,9 +12,9 @@ import jp.nephy.penicillin.core.emulation.OfficialClient
 import net.dv8tion.jda.core.entities.TextChannel
 import net.dv8tion.jda.core.events.message.guild.GuildMessageReceivedEvent
 import net.dv8tion.jda.core.events.message.guild.GuildMessageUpdateEvent
-import net.dv8tion.jda.core.events.message.guild.react.GuildMessageReactionAddEvent
 
 class IHateSuchWatcher: BotFeature() {
+    private val iHateSuchTextChannels by textChannelsLazy("i_hate_such")
     private val twitter = PenicillinClient {
         account {
             application(OfficialClient.OAuth1a.TwitterForiPad)
@@ -24,30 +24,8 @@ class IHateSuchWatcher: BotFeature() {
     private val twitterUrl = "(?:http(?:s)?://)?(?:m|mobile)?twitter\\.com/((?:\\w|_){1,16})/status/(\\d+)".toRegex()
 
     @Listener
-    override fun onGuildMessageReactionAdd(event: GuildMessageReactionAddEvent) {
-        val iHateSuchChannel = config.forGuild(event.guild)?.textChannel("i_hate_such") ?: return
-        if (event.member == null || event.user.isBotOrSelfUser || event.channel.idLong != iHateSuchChannel.idLong) {
-            return
-        }
-
-        val message = MessageCollector.latest(event.messageIdLong) ?: return
-        val match = twitterUrl.find(message.contentDisplay)
-        if (match == null) {
-            logger.info { "Twitter URLパターンに一致しないメッセージです: ${message.contentDisplay}" }
-            return
-        }
-
-        val emoji = HateEmoji.fromEmoji(event.reactionEmote.name)
-        if (emoji == null) {
-            logger.info { "`${message.contentDisplay}`に未知のリアクション ${event.reactionEmote.name} が付きました." }
-            return
-        }
-    }
-
-    @Listener
     override fun onGuildMessageReceived(event: GuildMessageReceivedEvent) {
-        val iHateSuchChannel = config.forGuild(event.guild)?.textChannel("i_hate_such") ?: return
-        if (event.member == null || event.author.isBotOrSelfUser || event.channel.idLong != iHateSuchChannel.idLong) {
+        if (event.member.user.isBotOrSelfUser || event.channel !in iHateSuchTextChannels) {
             return
         }
 
@@ -58,15 +36,14 @@ class IHateSuchWatcher: BotFeature() {
 
         event.channel.revealTweet(event.message.contentDisplay, onlyWhenProtected = true)
 
-        HateEmoji.values().forEach {
+        for (it in HateEmoji.values()) {
             event.message.addReaction(it.emoji).queue()
         }
     }
 
     @Listener
     override fun onGuildMessageUpdate(event: GuildMessageUpdateEvent) {
-        val iHateSuchChannel = config.forGuild(event.guild)?.textChannel("i_hate_such") ?: return
-        if (event.member == null || event.author.isBotOrSelfUser || event.channel.idLong != iHateSuchChannel.idLong) {
+        if (event.member.user.isBotOrSelfUser || event.channel !in iHateSuchTextChannels) {
             return
         }
 
@@ -75,9 +52,9 @@ class IHateSuchWatcher: BotFeature() {
             return
         }
 
-        HateEmoji.values().forEach { e ->
+        for (e in HateEmoji.values()) {
             if (event.message.reactions.any { it.reactionEmote.name == e.emoji }) {
-                return@forEach
+                continue
             }
 
             event.message.addReaction(e.emoji).queue()
@@ -87,6 +64,7 @@ class IHateSuchWatcher: BotFeature() {
     private fun TextChannel.revealTweet(text: String, onlyWhenProtected: Boolean = false) {
         twitterUrl.findAll(text).forEach { matched ->
             val statusId = matched.groupValues.last().toLong()
+
             twitter.status.show(id = statusId).queue { status ->
                 if (!onlyWhenProtected || status.result.user.protected) {
                     message {

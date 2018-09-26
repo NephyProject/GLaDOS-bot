@@ -16,8 +16,7 @@ class UpdatePresence: BotFeature() {
         jda.presence.game = when (rnd.nextInt(3)) {
             0 -> Game.watching(message)
             1 -> Game.listening(message)
-            2 -> Game.streaming(message, "https://www.twitch.tv/slashnephy")
-            else -> throw IllegalStateException()
+            else -> Game.streaming(message, "https://www.twitch.tv/slashnephy")
         }
     }
 }

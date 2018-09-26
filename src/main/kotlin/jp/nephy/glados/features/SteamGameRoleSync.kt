@@ -121,7 +121,6 @@ class SteamGameRoleSync: BotFeature() {
         }
     }
 
-    // TODO: OkHttp
     private val httpClient = HttpClient(Apache)
 
     private suspend fun Member.getUserProfile(): DiscordUserProfile? {

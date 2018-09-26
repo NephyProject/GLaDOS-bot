@@ -16,6 +16,7 @@ import net.dv8tion.jda.core.events.message.GenericMessageEvent
 import net.dv8tion.jda.core.events.message.MessageReceivedEvent
 import net.dv8tion.jda.core.events.message.MessageUpdateEvent
 import net.dv8tion.jda.core.hooks.ListenerAdapter
+import java.lang.reflect.InvocationTargetException
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.reflect.KFunction
 
@@ -255,16 +256,23 @@ class CommandSubscriptionClient: SubscriptionClient<Command>, ListenerAdapter() 
                 logger.trace { "${subscription.instance.javaClass.simpleName}#${subscription.function.name} が実行されました. (${event.guild?.name})" }
                 return
             } catch (e: Exception) {
+                val exception = if (e is InvocationTargetException) {
+                    e.targetException
+                } else {
+                    e
+                }
+
                 commandEvent.reply {
                     embed {
                         title("`$text` の実行中に例外が発生しました。")
                         description { "ご不便をお掛けしています。この問題が何度も発生する場合は開発者にご連絡ください。" }
-                        field("スタックトレース") { "${e.stackTraceString.take(300)}..." }
+                        field("スタックトレース") { "${exception.stackTraceString.take(300)}..." }
                         color(Color.Bad)
                         timestamp()
                     }
                 }.deleteQueue(30)
-                logger.error(e) { "Command: \"$text\" の実行中に例外が発生しました." }
+
+                logger.error(exception) { "Command: \"$text\" の実行中に例外が発生しました." }
                 return
             }
         }

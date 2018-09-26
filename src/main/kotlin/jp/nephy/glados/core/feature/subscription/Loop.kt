@@ -7,6 +7,7 @@ import kotlinx.coroutines.experimental.delay
 import kotlinx.coroutines.experimental.launch
 import net.dv8tion.jda.core.events.ReadyEvent
 import net.dv8tion.jda.core.hooks.ListenerAdapter
+import java.lang.reflect.InvocationTargetException
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.TimeUnit
 import kotlin.reflect.KFunction
@@ -42,7 +43,13 @@ class LoopSubscriptionClient: SubscriptionClient<Loop>, ListenerAdapter() {
                     } catch (e: CancellationException) {
                         break
                     } catch (e: Exception) {
-                        logger.error(e) { "[${it.instance.javaClass.simpleName}#${it.function.name}] 実行中に例外が発生しました." }
+                        val exception = if (e is InvocationTargetException) {
+                            e.targetException
+                        } else {
+                            e
+                        }
+
+                        logger.error(exception) { "[${it.instance.javaClass.simpleName}#${it.function.name}] 実行中に例外が発生しました." }
                     }
 
                     try {
