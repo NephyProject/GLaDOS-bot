@@ -19,7 +19,7 @@ import jp.nephy.jsonkt.*
 class FindGameOwnerCommand: BotFeature() {
     private val httpClient = HttpClient(Apache)
 
-    @Command(channelType = CommandChannelType.TextChannel, description = "指定されたSteamゲームを所有しているメンバーにメンションを飛ばします。", args = "<App ID>")
+    @Command(channelType = CommandChannelType.TextChannel, description = "指定されたSteamゲームを所有しているメンバーにメンションを飛ばします。", args = ["App ID"])
     suspend fun find(event: CommandEvent) {
         val appId = event.args.toIntOrNull() ?: return event.reply {
             embed {

@@ -24,7 +24,6 @@ import jp.nephy.glados.core.feature.subscription.Command
 import jp.nephy.glados.core.feature.subscription.CommandChannelType
 import jp.nephy.glados.core.feature.subscription.CommandEvent
 import jp.nephy.glados.core.feature.subscription.Listener
-import jp.nephy.glados.player
 import jp.nephy.glados.secret
 import jp.nephy.utils.characterLength
 import jp.nephy.utils.round
@@ -39,6 +38,7 @@ import net.dv8tion.jda.core.events.guild.voice.GuildVoiceLeaveEvent
 import net.dv8tion.jda.core.events.message.guild.GuildMessageReceivedEvent
 import net.dv8tion.jda.core.events.message.guild.react.GuildMessageReactionAddEvent
 import net.dv8tion.jda.core.requests.restaction.MessageAction
+import java.io.File
 import kotlin.math.roundToInt
 
 class MusicPlayer: BotFeature() {
@@ -54,10 +54,10 @@ class MusicPlayer: BotFeature() {
         }
     }
 
-    @Command(channelType = CommandChannelType.TextChannel, description = "指定されたメディアを再生します。", args = "<検索ワード|動画URL|プレイリストURL>")
+    @Command(channelType = CommandChannelType.TextChannel, description = "指定されたメディアを再生します。", args = ["検索ワード|動画URL|プレイリストURL"], category = "Music Bot")
     suspend fun play(event: CommandEvent) {
         val guildPlayer = event.guild?.player ?: return
-        if (PlayableVideoURL.values().any { it.match(event.args) }) {
+        if (PlayableVideoURL.values().any { it.match(event.args) } || File(event.args.trim()).exists()) {
             guildPlayer.loadTrack(event.args, TrackType.UserRequest, object: PlayerLoadResultHandler {
                 override fun onLoadTrack(track: AudioTrack) {
                     event.reply {
@@ -76,7 +76,7 @@ class MusicPlayer: BotFeature() {
                         }
                     }.deleteQueue(30)
 
-                    guildPlayer.controls.add(track)
+                    guildPlayer.controls += track
 
                     logger.info { "${event.member?.fullName}が `${track.info.effectiveTitle}` を再生キューに追加しました. (${track.sourceManager.sourceName})" }
                 }
@@ -99,7 +99,7 @@ class MusicPlayer: BotFeature() {
                             }
                         }.deleteQueue(30)
 
-                        guildPlayer.controls.add(playlist.selectedTrack)
+                        guildPlayer.controls += playlist.selectedTrack
                     } else {
                         event.reply {
                             embed {
@@ -185,7 +185,7 @@ class MusicPlayer: BotFeature() {
                                         }
                                     }.deleteQueue(30)
 
-                                    guildPlayer.controls.add(track)
+                                    guildPlayer.controls += track
 
                                     logger.info { "${event.member.fullName}が `${track.info.effectiveTitle}` を再生キューに追加しました. (${track.sourceManager.sourceName})" }
                                 }
@@ -246,7 +246,7 @@ class MusicPlayer: BotFeature() {
                                         }
                                     }.deleteQueue(30)
 
-                                    guildPlayer.controls.add(track)
+                                    guildPlayer.controls += track
 
                                     logger.info { "${event.member.fullName}が `${track.info.effectiveTitle}` を再生キューに追加しました. (${track.sourceManager.sourceName})" }
                                 }
@@ -292,7 +292,7 @@ class MusicPlayer: BotFeature() {
         }
     }
 
-    @Command(channelType = CommandChannelType.TextChannel, description = "ニコニコ動画のランキングを再生します。")
+    @Command(channelType = CommandChannelType.TextChannel, description = "ニコニコ動画のランキングを再生します。", category = "Music Bot")
     fun nico(event: CommandEvent) {
         respondNico(event.textChannel ?: return, event.member ?: return, event.guild?.player ?: return)
     }
@@ -338,7 +338,7 @@ class MusicPlayer: BotFeature() {
         }
     }
 
-    @Command(aliases = ["sc"], channelType = CommandChannelType.TextChannel, description = "SoundCloudのチャートを再生します。")
+    @Command(aliases = ["sc"], channelType = CommandChannelType.TextChannel, description = "SoundCloudのチャートを再生します。", category = "Music Bot")
     fun soundcloud(event: CommandEvent) {
         respondSoundCloud(event.textChannel ?: return, event.member ?: return, event.guild?.player ?: return)
     }
@@ -378,7 +378,7 @@ class MusicPlayer: BotFeature() {
         }
     }
 
-    @Command(channelType = CommandChannelType.TextChannel, description = "現在の再生キューを取得します。")
+    @Command(channelType = CommandChannelType.TextChannel, description = "現在の再生キューを取得します。", category = "Music Bot")
     fun queue(event: CommandEvent) {
         respondQueue(event.textChannel ?: return, event.member ?: return, event.guild?.player ?: return).deleteQueue(30)
     }
@@ -428,6 +428,24 @@ class MusicPlayer: BotFeature() {
         }
     }
 
+    @Command(channelType = CommandChannelType.TextChannel, description = "現在接続中のボイスチャンネルにGLaDOSを呼びます。", category = "Music Bot")
+    fun summon(event: CommandEvent) {
+        val guildPlayer = event.guild?.player ?: return
+
+        if (event.member!!.voiceState?.channel == guildPlayer.currentVoiceChannel) {
+            return event.reply {
+                embed {
+                    title("コマンドエラー: !summon")
+                    description { "既に同じボイスチャンネルに参加しています。" }
+                    color(Color.Bad)
+                    timestamp()
+                }
+            }.deleteQueue(30)
+        }
+
+        guildPlayer.joinVoiceChannel(event.member.voiceState.channel)
+    }
+
     @Listener
     override fun onGuildVoiceJoin(event: GuildVoiceJoinEvent) {
         val guildPlayer = event.guild.player ?: return
@@ -464,7 +482,7 @@ class MusicPlayer: BotFeature() {
         if (!event.member.voiceState.inVoiceChannel() || event.member.voiceState.channel != guildPlayer.currentVoiceChannel) {
             return event.channel.reply(event.member) {
                 embed {
-                    title("私が再生しているボイスチャンネルに参加していないのでコマンドは実行できません。")
+                    title("GLaDOSが再生しているボイスチャンネルに参加していないのでコマンドは実行できません。")
                     color(Color.Bad)
                 }
             }.deleteQueue(30)
@@ -788,7 +806,7 @@ class MusicPlayer: BotFeature() {
                                             }
                                         }.deleteQueue(30)
 
-                                        guildPlayer.controls.add(track)
+                                        guildPlayer.controls += track
                                     }
 
                                     override fun onLoadPlaylist(playlist: AudioPlaylist) {

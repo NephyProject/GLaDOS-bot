@@ -8,7 +8,7 @@ import jp.nephy.glados.core.feature.subscription.CommandEvent
 import java.time.temporal.ChronoUnit
 
 class PingCommand: BotFeature() {
-    @Command(description = "GLaDOSの遅延をチェックします。")
+    @Command(description = "GLaDOSの遅延をチェックします。", category = "システム")
     fun ping(event: CommandEvent) {
         event.reply {
             message {

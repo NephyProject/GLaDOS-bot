@@ -7,10 +7,12 @@ import com.sedmelluq.discord.lavaplayer.source.nico.NicoAudioSourceManager
 import com.sedmelluq.discord.lavaplayer.tools.FriendlyException
 import com.sedmelluq.discord.lavaplayer.track.AudioPlaylist
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack
+import jp.nephy.glados.config
 import jp.nephy.glados.core.GLaDOSConfig
 import jp.nephy.glados.core.Logger
 import jp.nephy.glados.core.api.niconico.NiconicoClient
 import jp.nephy.glados.core.api.youtube.YouTubeClient
+import jp.nephy.glados.core.audio.AudioReceiveHandlerImpl
 import jp.nephy.glados.core.audio.AudioSendHandlerImpl
 import jp.nephy.glados.core.audio.ConnectionListenerImpl
 import jp.nephy.glados.core.audio.music.adapter.EventMessage
@@ -20,8 +22,27 @@ import jp.nephy.glados.secret
 import jp.nephy.utils.sumBy
 import net.dv8tion.jda.core.entities.Guild
 import net.dv8tion.jda.core.entities.VoiceChannel
+import java.util.concurrent.ConcurrentHashMap
 
 private val logger = Logger("GLaDOS.Audio.GuildPlayer")
+
+private val players = ConcurrentHashMap<Guild, GuildPlayer>()
+val Guild.player: GuildPlayer?
+    get() = synchronized(players) {
+        players.getOrPut(this) {
+            val guildConfig = config.forGuild(this) ?: return null
+            val defaultVoiceChannel = guildConfig.voiceChannel("default") ?: return null
+
+            GuildPlayer(this, guildConfig, defaultVoiceChannel).apply {
+                guild.audioManager.isAutoReconnect = true
+                guild.audioManager.connectionListener = connectionListener
+                guild.audioManager.sendingHandler = sendingHandler
+                guild.audioManager.setReceivingHandler(receivingHandler)
+
+                logger.info { "[${currentVoiceChannel.name} (${guild.name})] プレイヤーが生成されました." }
+            }
+        }
+    }
 
 class GuildPlayer(val guild: Guild, val guildConfig: GLaDOSConfig.GuildConfig, private val defaultVoiceChannel: VoiceChannel) {
     private val playerManager = DefaultAudioPlayerManager()
@@ -31,13 +52,13 @@ class GuildPlayer(val guild: Guild, val guildConfig: GLaDOSConfig.GuildConfig, p
 
     val connectionListener = ConnectionListenerImpl(guild)
     val sendingHandler = AudioSendHandlerImpl(player)
-    // val receivingHandler = AudioReceiveHandlerImpl(this)
+    val receivingHandler = AudioReceiveHandlerImpl(this)
     val controls = TrackControls(this, player)
 
     init {
-        playerManager.registerSourceManager(NicoAudioSourceManager(secret.forKey<String>("niconico_email"), secret.forKey<String>("niconico_password")))
+        AudioSourceManagers.registerLocalSource(playerManager)
+        playerManager.registerSourceManager(NicoAudioSourceManager(secret.forKey("niconico_email"), secret.forKey("niconico_password")))
         AudioSourceManagers.registerRemoteSources(playerManager)
-        // AudioSourceManagers.registerLocalSource(playerManager)
 
         player.addListener(controls)
         player.addListener(EventMessage(this))

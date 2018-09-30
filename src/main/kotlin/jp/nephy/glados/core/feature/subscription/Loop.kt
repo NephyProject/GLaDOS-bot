@@ -2,12 +2,12 @@ package jp.nephy.glados.core.feature.subscription
 
 import jp.nephy.glados.core.Logger
 import jp.nephy.glados.core.feature.BotFeature
+import jp.nephy.glados.core.invocationException
 import kotlinx.coroutines.experimental.CancellationException
 import kotlinx.coroutines.experimental.delay
 import kotlinx.coroutines.experimental.launch
 import net.dv8tion.jda.core.events.ReadyEvent
 import net.dv8tion.jda.core.hooks.ListenerAdapter
-import java.lang.reflect.InvocationTargetException
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.TimeUnit
 import kotlin.reflect.KFunction
@@ -38,18 +38,12 @@ class LoopSubscriptionClient: SubscriptionClient<Loop>, ListenerAdapter() {
             launch {
                 while (isActive) {
                     try {
-                        it.execute()
+                        it.invoke()
                         logger.trace { "${it.instance.javaClass.simpleName}#${it.function.name} が実行されました." }
                     } catch (e: CancellationException) {
                         break
                     } catch (e: Exception) {
-                        val exception = if (e is InvocationTargetException) {
-                            e.targetException
-                        } else {
-                            e
-                        }
-
-                        logger.error(exception) { "[${it.instance.javaClass.simpleName}#${it.function.name}] 実行中に例外が発生しました." }
+                        logger.error(e.invocationException) { "[${it.instance.javaClass.simpleName}#${it.function.name}] 実行中に例外が発生しました." }
                     }
 
                     try {

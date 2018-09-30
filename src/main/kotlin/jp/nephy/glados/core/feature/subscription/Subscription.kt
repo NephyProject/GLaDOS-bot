@@ -1,19 +1,16 @@
 package jp.nephy.glados.core.feature.subscription
 
 import jp.nephy.glados.core.GLaDOSConfig
-import jp.nephy.glados.core.Logger
 import jp.nephy.glados.core.feature.BotFeature
 import kotlin.coroutines.experimental.suspendCoroutine
 import kotlin.reflect.KFunction
-
-private val logger = Logger("GLaDOS.Subscription")
 
 interface Subscription<T: Annotation> {
     val annotation: T
     val instance: BotFeature
     val function: KFunction<*>
 
-    suspend fun execute(vararg args: Any?) {
+    suspend operator fun invoke(vararg args: Any?) {
         if (function.isSuspend) {
             suspendCoroutine<Any?> {
                 try {

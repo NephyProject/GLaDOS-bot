@@ -62,15 +62,14 @@ class HappyBirthday: BotFeature() {
 
                             channel.message {
                                 embed {
-                                    title(":birthday: 誕生日おめでとうございます！")
+                                    title(":birthday: お誕生日おめでとうございます！")
                                     descriptionBuilder {
-                                        appendln("今日 $month/$day は ${it.effectiveName} ${discordMember?.asMention.orEmpty()} さんの誕生日です。")
+                                        appendln("本日 $month/$day は ${it.effectiveName} ${discordMember?.asMention.orEmpty()} さんの誕生日です。")
                                         if (twitter?.sn != null) {
                                             append("クソリプでお祝いしましょう！ https://kusoripu.nephy.jp/${twitter.sn}")
                                         }
                                     }
                                     color(Color.Good)
-                                    timestamp()
                                 }
                             }.queue()
                         }

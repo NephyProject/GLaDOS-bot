@@ -10,6 +10,7 @@ import jp.nephy.glados.core.feature.subscription.*
 import jp.nephy.glados.core.fullName
 import jp.nephy.glados.core.isBotOrSelfUser
 import jp.nephy.glados.core.removeRole
+import jp.nephy.utils.BooleanLinkedSingleCache
 import jp.nephy.utils.IntLinkedSingleCache
 import net.dv8tion.jda.core.Permission
 import net.dv8tion.jda.core.entities.Member
@@ -29,6 +30,7 @@ class VoiceChannelWatcher: BotFeature() {
     private val invisibleVoiceChannels by voiceChannelsLazy("invisible")
     private val invisibleTextChannels by textChannelsLazy("invisible")
 
+    private var invisibleChannelLocked by BooleanLinkedSingleCache { false }
     private val noMuteMovedWarningCooldowns = ConcurrentHashMap<Member, Long>()
     private val muteLimitCountdowns = ConcurrentHashMap<Member, Int>()
     private var maxMuteSeconds by IntLinkedSingleCache { 5 * 60 }
@@ -39,12 +41,14 @@ class VoiceChannelWatcher: BotFeature() {
                        ミュートしている場合         -> Inkyaロール付与
         [No Mute]にミュートした状態で参加した場合    -> AFKチャンネルへ移動
         [Mute Limit]にミュートした状態で参加した場合 -> カウントダウン開始
+        [Invisible]に参加した場合                  -> テキストチャンネルの権限を付与
 
         AFKチャンネルから移動してきた場合            -> GeneralVC権限付与
                        ミュートしていない場合       -> Invisible権限付与
                        ミュートしている場合         -> Inkyaロール付与
         [No Mute]にミュートした状態で移動した場合    -> AFKチャンネルへ移動
         [Mute Limit]にミュートした状態で移動した場合 -> カウントダウン開始
+        [Invisible]に移動した場合                  -> テキストチャンネルの権限を付与
 
         [Invisible]以外でミュートした場合           -> Invisible権限削除
         AFKチャンネル以外でミュートした場合          -> Inkyaロール付与
@@ -53,6 +57,9 @@ class VoiceChannelWatcher: BotFeature() {
 
         ボイスチャンネルから退出した場合             -> 権限&ロール&カウントダウン削除
         AFKチャンネルに移動した場合                 -> 権限&ロール&カウントダウン削除
+        [Invisible]から退出した場合                -> テキストチャンネルの権限を削除
+
+        [Invisible]が空になった場合                -> ロックを解除
      */
     @Loop(5, TimeUnit.SECONDS)
     fun check() {
@@ -62,13 +69,17 @@ class VoiceChannelWatcher: BotFeature() {
                 if (member.voiceState.inVoiceChannel() && member.voiceState.channel != guild.afkChannel) {
                     member.addGeneralVCPermission()
                     if (!member.voiceState.isMuted) {
-                        member.addInvisiblePermissions()
+                        member.addInvisibleVoiceChannelPermission()
+                        if (member.voiceState.channel in invisibleVoiceChannels) {
+                            member.addInvisibleTextChannelPermission()
+                        }
                     } else {
                         member.addInkyaRole()
                     }
                 } else {
                     member.removeGeneralVCPermission()
-                    member.removeInvisiblePermissions()
+                    member.removeInvisibleTextChannelPermission()
+                    member.removeInvisibleVoiceChannelPermission()
                     member.removeInkyaRole()
                 }
             }
@@ -97,7 +108,7 @@ class VoiceChannelWatcher: BotFeature() {
     }
 
     private val maxMuteMininumSeconds = 10
-    @Command(permission = CommandPermission.AdminOnly, description = "[Mute Limit]チャンネルで適用する最大のミュート時間を指定します。", args = "<秒>")
+    @Command(permission = CommandPermission.AdminOnly, description = "[Mute Limit]チャンネルで適用する最大のミュート時間を指定します。", args = ["秒"], category = "VC Watcher")
     fun maxmute(event: CommandEvent) {
         val n = event.args.toIntOrNull()
         if (n == null || n < maxMuteMininumSeconds) {
@@ -123,12 +134,83 @@ class VoiceChannelWatcher: BotFeature() {
         }.queue()
     }
 
+    @Command(description = "[Invisible]チャンネルをロックします。", category = "VC Watcher")
+    fun lock(event: CommandEvent) {
+        if (event.textChannel !in invisibleTextChannels) {
+            return
+        }
+
+        if (invisibleChannelLocked) {
+            event.reply {
+                embed {
+                    title("lock")
+                    descriptionBuilder {
+                        appendln("既に ${event.textChannel!!.asMention} はロックされています。")
+                        appendln("ロック中は[Invisible] と ${event.textChannel.asMention} は他のメンバーに表示されなくなるため安全に利用できます。")
+                        appendln("VCから切断すると参加できなくなるためご注意ください。")
+                        append("[Invisible]接続メンバーが0になるか, `!unlock` コマンドでロックを解除できます。")
+                    }
+                    timestamp()
+                }
+            }.deleteQueue(30, TimeUnit.SECONDS)
+        } else {
+            invisibleChannelLocked = true
+            event.reply {
+                embed {
+                    title("lock")
+                    descriptionBuilder {
+                        appendln("${event.textChannel!!.asMention} はロックしました。")
+                        appendln("ロック中は[Invisible] と ${event.textChannel.asMention} は他のメンバーに表示されなくなるため安全に利用できます。")
+                        appendln("VCから切断すると参加できなくなるためご注意ください。")
+                        append("[Invisible]接続メンバーが0になるか, `!unlock` コマンドでロックを解除できます。")
+                    }
+                    timestamp()
+                }
+            }.deleteQueue(30, TimeUnit.SECONDS)
+        }
+    }
+
+    @Command(description = "[Invisible]チャンネルのロックを解除します。", category = "VC Watcher")
+    fun unlock(event: CommandEvent) {
+        if (event.textChannel !in invisibleTextChannels) {
+            return
+        }
+
+        if (!invisibleChannelLocked) {
+            event.reply {
+                embed {
+                    title("unlock")
+                    descriptionBuilder {
+                        appendln("既に ${event.textChannel!!.asMention} はロック解除されています。")
+                        append("${event.textChannel.asMention} の書き込み内容は接続中に投稿されたメッセージ以外は読むことができないため安全に利用できます。")
+                    }
+                    timestamp()
+                }
+            }.deleteQueue(30, TimeUnit.SECONDS)
+        } else {
+            invisibleChannelLocked = false
+            event.reply {
+                embed {
+                    title("unlock")
+                    descriptionBuilder {
+                        appendln("${event.textChannel!!.asMention} はロック解除しました。")
+                        append("${event.textChannel.asMention} の書き込み内容は接続中に投稿されたメッセージ以外は読むことができないため安全に利用できます。")
+                    }
+                    timestamp()
+                }
+            }.deleteQueue(30, TimeUnit.SECONDS)
+        }
+    }
+
     @Listener
     override fun onGuildVoiceJoin(event: GuildVoiceJoinEvent) {
         if (event.voiceState.channel != event.guild.afkChannel) {
             event.member.addGeneralVCPermission()
             if (!event.voiceState.isMuted) {
-                event.member.addInvisiblePermissions()
+                event.member.addInvisibleVoiceChannelPermission()
+                if (event.member.voiceState.channel in invisibleVoiceChannels) {
+                    event.member.addInvisibleTextChannelPermission()
+                }
             } else {
                 event.member.addInkyaRole()
                 if (event.voiceState.channel in noMuteVoiceChannels) {
@@ -143,9 +225,14 @@ class VoiceChannelWatcher: BotFeature() {
     @Listener
     override fun onGuildVoiceLeave(event: GuildVoiceLeaveEvent) {
         event.member.removeGeneralVCPermission()
-        event.member.removeInvisiblePermissions()
+        event.member.removeInvisibleTextChannelPermission()
+        event.member.removeInvisibleVoiceChannelPermission()
         event.member.removeInkyaRole()
         event.member.stopMuting()
+
+        if (event.channelLeft in invisibleVoiceChannels && event.channelLeft.members.isEmpty()) {
+            invisibleChannelLocked = false
+        }
     }
 
     @Listener
@@ -153,13 +240,17 @@ class VoiceChannelWatcher: BotFeature() {
         if (event.channelLeft == event.guild.afkChannel) {
             event.member.addGeneralVCPermission()
             if (!event.voiceState.isMuted) {
-                event.member.addInvisiblePermissions()
+                event.member.addInvisibleVoiceChannelPermission()
+                if (event.member.voiceState.channel in invisibleVoiceChannels) {
+                    event.member.addInvisibleTextChannelPermission()
+                }
             } else {
                 event.member.addInkyaRole()
             }
         } else if (event.channelJoined == event.guild.afkChannel) {
             event.member.removeGeneralVCPermission()
-            event.member.removeInvisiblePermissions()
+            event.member.removeInvisibleTextChannelPermission()
+            event.member.removeInvisibleVoiceChannelPermission()
             event.member.removeInkyaRole()
             event.member.stopMuting()
         }
@@ -170,12 +261,35 @@ class VoiceChannelWatcher: BotFeature() {
         if (event.channelJoined in muteLimitVoiceChannels && event.voiceState.isMuted) {
             event.member.startMuting()
         }
+
+        if (event.channelLeft in invisibleVoiceChannels && event.channelLeft.members.isEmpty()) {
+            invisibleChannelLocked = false
+        }
+
+        if (event.channelJoined in invisibleVoiceChannels) {
+            invisibleTextChannels.textChannelOf(event.guild) {
+                TimeUnit.SECONDS.sleep(3)
+
+                it.reply(event.member) {
+                    embed {
+                        title("General #0 へようこそ！")
+                        descriptionBuilder {
+                            appendln("General #0 と ${it.asMention} はVC接続中にのみ表示される隠しチャンネルです。")
+                            appendln("`!lock` コマンドでチャンネルをロックし, 新たな人に表示されなくできます。")
+                            append("また ${it.asMention} は接続中に投稿されたメッセージしか読むことはできず, 安全に利用できます。")
+                        }
+                        timestamp()
+                    }
+                }.deleteQueue(30, TimeUnit.SECONDS)
+            }
+        }
     }
 
     @Listener
     override fun onGuildVoiceMute(event: GuildVoiceMuteEvent) {
         if (event.voiceState.channel !in invisibleVoiceChannels && event.isMuted) {
-            event.member.removeInvisiblePermissions()
+            event.member.removeInvisibleTextChannelPermission()
+            event.member.removeInvisibleVoiceChannelPermission()
         }
 
         if (!event.isMuted) {
@@ -300,8 +414,23 @@ class VoiceChannelWatcher: BotFeature() {
         }
     }
 
-    private fun Member.addInvisiblePermissions() {
-        if (user.isBotOrSelfUser) {
+    private fun Member.addInvisibleVoiceChannelPermission() {
+        if (user.isBotOrSelfUser || invisibleChannelLocked) {
+            return
+        }
+
+        invisibleVoiceChannels.voiceChannelOf(guild) {
+            if (it.getPermissionOverride(this) == null) {
+                it.createPermissionOverride(this)
+                        .setAllow(Permission.VIEW_CHANNEL, Permission.VOICE_CONNECT, Permission.VOICE_SPEAK, Permission.VOICE_USE_VAD)
+                        .setDeny(Permission.CREATE_INSTANT_INVITE, Permission.MANAGE_CHANNEL, Permission.MANAGE_ROLES, Permission.MANAGE_WEBHOOKS, Permission.VOICE_MUTE_OTHERS, Permission.VOICE_DEAF_OTHERS, Permission.VOICE_MOVE_OTHERS, Permission.PRIORITY_SPEAKER)
+                        .queue()
+            }
+        }
+    }
+
+    private fun Member.addInvisibleTextChannelPermission() {
+        if (user.isBotOrSelfUser || invisibleChannelLocked) {
             return
         }
 
@@ -313,25 +442,24 @@ class VoiceChannelWatcher: BotFeature() {
                         .queue()
             }
         }
+    }
+
+    private fun Member.removeInvisibleVoiceChannelPermission() {
+        if (user.isBotOrSelfUser) {
+            return
+        }
+
         invisibleVoiceChannels.voiceChannelOf(guild) {
-            if (it.getPermissionOverride(this) == null) {
-                it.createPermissionOverride(this)
-                        .setAllow(Permission.VIEW_CHANNEL, Permission.VOICE_CONNECT, Permission.VOICE_SPEAK, Permission.VOICE_USE_VAD)
-                        .setDeny(Permission.CREATE_INSTANT_INVITE, Permission.MANAGE_CHANNEL, Permission.MANAGE_ROLES, Permission.MANAGE_WEBHOOKS, Permission.VOICE_MUTE_OTHERS, Permission.VOICE_DEAF_OTHERS, Permission.VOICE_MOVE_OTHERS, Permission.PRIORITY_SPEAKER)
-                        .queue()
-            }
+            it.getPermissionOverride(this)?.delete()?.queue()
         }
     }
 
-    private fun Member.removeInvisiblePermissions() {
+    private fun Member.removeInvisibleTextChannelPermission() {
         if (user.isBotOrSelfUser) {
             return
         }
 
         invisibleTextChannels.textChannelOf(guild) {
-            it.getPermissionOverride(this)?.delete()?.queue()
-        }
-        invisibleVoiceChannels.voiceChannelOf(guild) {
             it.getPermissionOverride(this)?.delete()?.queue()
         }
     }

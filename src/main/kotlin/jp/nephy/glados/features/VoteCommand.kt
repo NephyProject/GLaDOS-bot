@@ -23,30 +23,16 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.TimeUnit
 
 class VoteCommand: BotFeature() {
-    private val timeRegex = "^(\\d+d)?(\\d+h)?(\\d+m)?(\\d+s)?$".toRegex()
     private val timeFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
 
-    @Command(channelType = CommandChannelType.TextChannel, args = "<タイトル> <期限(XdXhXmXs)> <絵文字1> <選択肢1> <絵文字2> <選択肢2> ...")
+    @Command(channelType = CommandChannelType.TextChannel, args = ["タイトル", "期限(XdXhXmXs)", "絵文字1", "選択肢1", "絵文字2", "選択肢2", "..."], checkArgsCount = false)
     fun vote(event: CommandEvent) {
         val args = event.argList
         if (args.size < 6 || args.size % 2 != 0) {
             return event.error()
         }
 
-        var duration = 0
-        val (d, h, m, s) = timeRegex.matchEntire(args[1])?.destructured ?: return event.error()
-        if (d.isNotEmpty()) {
-            duration += d.dropLast(1).toInt() * 24 * 60 * 60
-        }
-        if (h.isNotEmpty()) {
-            duration += h.dropLast(1).toInt() * 60 * 60
-        }
-        if (m.isNotEmpty()) {
-            duration += m.dropLast(1).toInt() * 60
-        }
-        if (s.isNotEmpty()) {
-            duration += s.dropLast(1).toInt()
-        }
+        val duration = calculateDurationSeconds(args[1]) ?: return event.error()
         val calendar = Calendar.getInstance().also {
             it.add(Calendar.SECOND, duration)
         }
@@ -106,7 +92,7 @@ class VoteCommand: BotFeature() {
         reply {
             embed {
                 title("コマンドエラー: vote")
-                description { "与えられた引数: `$args`は不正です。`help vote`を参照してください。" }
+                description { "与えられた引数: `$args`は不正です。`!help`を参照してください。" }
                 color(Color.Bad)
                 timestamp()
             }
@@ -122,7 +108,7 @@ class VoteCommand: BotFeature() {
                 votes[event.messageIdLong]!![event.reactionEmote.name] = CopyOnWriteArrayList()
             }
 
-            votes[event.messageIdLong]!![event.reactionEmote.name]!!.add(event.member)
+            votes[event.messageIdLong]!![event.reactionEmote.name]!! += event.member
         }
     }
 
@@ -133,7 +119,7 @@ class VoteCommand: BotFeature() {
                 votes[event.messageIdLong]!![event.reactionEmote.name] = CopyOnWriteArrayList()
             }
 
-            votes[event.messageIdLong]!![event.reactionEmote.name]!!.remove(event.member)
+            votes[event.messageIdLong]!![event.reactionEmote.name]!! -= event.member
         }
     }
 
@@ -143,4 +129,24 @@ class VoteCommand: BotFeature() {
             votes[event.messageIdLong] = ConcurrentHashMap()
         }
     }
+}
+
+fun calculateDurationSeconds(text: String): Int? {
+    var duration = 0
+
+    val timeRegex = "^(\\d+d)?(\\d+h)?(\\d+m)?(\\d+s)?$".toRegex()
+    val (d, h, m, s) = timeRegex.matchEntire(text)?.destructured ?: return null
+    if (d.isNotEmpty()) {
+        duration += d.dropLast(1).toInt() * 24 * 60 * 60
+    }
+    if (h.isNotEmpty()) {
+        duration += h.dropLast(1).toInt() * 60 * 60
+    }
+    if (m.isNotEmpty()) {
+        duration += m.dropLast(1).toInt() * 60
+    }
+    if (s.isNotEmpty()) {
+        duration += s.dropLast(1).toInt()
+    }
+    return duration
 }

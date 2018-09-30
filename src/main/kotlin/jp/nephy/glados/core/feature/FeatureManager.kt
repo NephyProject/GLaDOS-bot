@@ -51,7 +51,7 @@ class FeatureManager(prefix: String) {
                             config.guilds[it]
                         }
 
-                        commandClient.subscriptions.add(CommandSubscription(methodAnnotation, instance, function, guilds))
+                        commandClient.subscriptions += CommandSubscription(methodAnnotation, instance, function, guilds)
                         logger.info { "Command: ${instance.javaClass.simpleName}#${it.name} をロードしました." }
                     } else {
                         logger.warn { "[${instance.javaClass.simpleName}#${it.name}] @Command が付与されていますが, 引数の型がCommandEventではありません. スキップします." }
@@ -68,7 +68,7 @@ class FeatureManager(prefix: String) {
                             config.guilds[it]
                         }
 
-                        listenerClient.subscriptions.add(ListenerSubscription(methodAnnotation, instance, function, guilds))
+                        listenerClient.subscriptions += ListenerSubscription(methodAnnotation, instance, function, guilds)
                         logger.info { "Listener: ${instance.javaClass.simpleName}#${it.name} をロードしました." }
                     } else {
                         logger.warn { "[${instance.javaClass.simpleName}#${it.name}] @Listener が付与されていますが, 引数の型がEventを継承していません. スキップします." }
@@ -78,7 +78,7 @@ class FeatureManager(prefix: String) {
                     if ((function.isSuspend && it.parameterTypes.size == 1) || (!function.isSuspend && it.parameterTypes.isEmpty())) {
                         val methodAnnotation = it.getAnnotation(Loop::class.java)
 
-                        poolClient.subscriptions.add(LoopSubscription(methodAnnotation, instance, function))
+                        poolClient.subscriptions += LoopSubscription(methodAnnotation, instance, function)
                         logger.info { "Loop: ${instance.javaClass.simpleName}#${it.name} をロードしました." }
                     } else {
                         logger.warn { "[${instance.javaClass.simpleName}#${it.name}] @Loop が付与されていますが, 引数の数は0である必要があります. スキップします." }

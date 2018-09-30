@@ -16,19 +16,19 @@ abstract class BotFeature: ListenerAdapter() {
 
 annotation class Feature(val guilds: Array<String>)
 
-fun BotFeature.rolesLazy(name: String) = object: ReadOnlyProperty<BotFeature, List<Role>> {
+fun rolesLazy(name: String) = object: ReadOnlyProperty<BotFeature, List<Role>> {
     override fun getValue(thisRef: BotFeature, property: KProperty<*>): List<Role> {
         return config.guilds.mapNotNull { it.value.role(name) }
     }
 }
 
-fun BotFeature.voiceChannelsLazy(name: String) = object: ReadOnlyProperty<BotFeature, List<VoiceChannel>> {
+fun voiceChannelsLazy(name: String) = object: ReadOnlyProperty<BotFeature, List<VoiceChannel>> {
     override fun getValue(thisRef: BotFeature, property: KProperty<*>): List<VoiceChannel> {
         return config.guilds.mapNotNull { it.value.voiceChannel(name) }
     }
 }
 
-fun BotFeature.textChannelsLazy(name: String) = object: ReadOnlyProperty<BotFeature, List<TextChannel>> {
+fun textChannelsLazy(name: String) = object: ReadOnlyProperty<BotFeature, List<TextChannel>> {
     override fun getValue(thisRef: BotFeature, property: KProperty<*>): List<TextChannel> {
         return config.guilds.mapNotNull { it.value.textChannel(name) }
     }

@@ -19,6 +19,8 @@ class Greeting: BotFeature() {
                     embed {
                         title("${event.guild.name} にようこそ！")
                         description { "${event.member.asMention} さんようこそ。\n参加に際しては ${rulesChannel.asMention} の内容を確認してください。" }
+                        footer("#${defaultChannel.name} ${event.guild.name}", event.guild.iconUrl)
+                        timestamp()
                     }
                 }.queue()
             }

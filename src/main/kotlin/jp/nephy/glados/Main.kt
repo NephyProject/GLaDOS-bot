@@ -2,56 +2,40 @@ package jp.nephy.glados
 
 import com.jagrosh.jdautilities.commons.waiter.EventWaiter
 import com.sedmelluq.discord.lavaplayer.jdaudp.NativeAudioSendFactory
+import io.ktor.application.Application
+import io.ktor.server.engine.embeddedServer
+import io.ktor.server.netty.Netty
 import jp.nephy.glados.core.*
-import jp.nephy.glados.core.audio.music.GuildPlayer
 import jp.nephy.glados.core.feature.FeatureManager
+import jp.nephy.glados.core.wui.module
 import jp.nephy.utils.linkedCacheDir
 import kotlinx.coroutines.experimental.CommonPool
 import net.dv8tion.jda.core.AccountType
 import net.dv8tion.jda.core.JDA
 import net.dv8tion.jda.core.JDABuilder
 import net.dv8tion.jda.core.entities.Game
-import net.dv8tion.jda.core.entities.Guild
 import java.nio.file.Paths
-import java.util.concurrent.ConcurrentHashMap
 
-internal lateinit var jda: JDA
+var isDebugMode = false
+    private set
+lateinit var secret: SecretConfig
+    private set
+lateinit var config: GLaDOSConfig
     private set
 lateinit var eventWaiter: EventWaiter
     private set
-
-internal var isDebugMode = false
+lateinit var featureManager: FeatureManager
     private set
-internal lateinit var config: GLaDOSConfig
+lateinit var jda: JDA
     private set
-internal lateinit var secret: SecretConfig
-    private set
-
-private val logger by lazy { Logger("GLaDOS") }
-
-private val players = ConcurrentHashMap<Long, GuildPlayer>()
-val Guild.player: GuildPlayer?
-    get() = synchronized(players) {
-        players.getOrPut(idLong) {
-            val guildConfig = config.forGuild(this) ?: return null
-            val defaultVoiceChannel = guildConfig.voiceChannel("default") ?: return null
-
-            GuildPlayer(this, guildConfig, defaultVoiceChannel).apply {
-                guild.audioManager.isAutoReconnect = true
-                guild.audioManager.connectionListener = connectionListener
-                guild.audioManager.sendingHandler = sendingHandler
-
-                logger.info { "[${currentVoiceChannel.name} (${guild.name})] プレイヤーが生成されました." }
-            }
-        }
-    }
 
 fun main(args: Array<String>) {
-    linkedCacheDir = Paths.get("cache")
     isDebugMode = args.contains("--debug")
+    linkedCacheDir = Paths.get("cache")
 
     secret = SecretConfig.load(secretConfigPath)
 
+    val logger = Logger("GLaDOS")
     config = if (isDebugMode) {
         logger.debug { "デバックモードで起動しています." }
         GLaDOSConfig.load(developmentConfigPath)
@@ -59,6 +43,7 @@ fun main(args: Array<String>) {
         logger.debug { "プロダクションモードで起動しています." }
         GLaDOSConfig.load(productionConfigPath)
     }
+
     if (config.guilds.isEmpty()) {
         logger.error { "GLaDOSのサーバ設定が空です." }
         return
@@ -69,6 +54,7 @@ fun main(args: Array<String>) {
     }
 
     if (config.parallelism != null) {
+        logger.info { "オーバライドされたCommonPoolの並列数 = ${config.parallelism}" }
         System.setProperty(CommonPool.DEFAULT_PARALLELISM_PROPERTY_NAME, config.parallelism.toString())
     }
 
@@ -76,14 +62,16 @@ fun main(args: Array<String>) {
 
     jda = JDABuilder(AccountType.BOT).apply {
         setToken(config.token)
-        setAudioSendFactory(NativeAudioSendFactory())
+        setAudioSendFactory(NativeAudioSendFactory(1000))
         setGame(Game.playing("Starting..."))
 
         addEventListener(eventWaiter)
 
-        val featureManager = FeatureManager("jp.nephy.glados.features")
+        featureManager = FeatureManager("jp.nephy.glados.features")
         addEventListener(featureManager.commandClient)
         addEventListener(featureManager.listenerClient)
         addEventListener(featureManager.poolClient)
     }.build()
+
+    embeddedServer(Netty, host = config.wuiHost, port = config.wuiPort, module = Application::module).start(wait = true)
 }

@@ -42,7 +42,7 @@ class NiconicoClient {
                 override fun onLoadTrack(track: AudioTrack) {
                     track.groupIdSetter = groupId
                     track.nicoRankingCacheSetter = it
-                    guildPlayer.controls.add(track)
+                    guildPlayer.controls += track
                 }
             })
         }

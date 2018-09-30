@@ -3,6 +3,7 @@ package jp.nephy.glados.core
 import jp.nephy.glados.isDebugMode
 import jp.nephy.utils.divMod
 import java.io.File
+import java.lang.reflect.InvocationTargetException
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.*
@@ -53,3 +54,10 @@ fun Long?.toMilliSecondString(): String? {
         append("${r3}秒")
     }
 }
+
+val Exception.invocationException: Throwable
+    get() = if (this is InvocationTargetException) {
+        targetException
+    } else {
+        this
+    }

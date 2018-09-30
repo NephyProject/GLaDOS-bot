@@ -19,6 +19,10 @@ class TrackControls(private val guildPlayer: GuildPlayer, private val player: Au
     private val soundCloudQueue = CopyOnWriteArrayList<AudioTrack>()
     private val nicoRankingQueue = CopyOnWriteArrayList<AudioTrack>()
 
+    operator fun plusAssign(track: AudioTrack) {
+        add(track, justLoad = false)
+    }
+
     fun add(track: AudioTrack, justLoad: Boolean = false) {
         // ユーザリクエスト楽曲を優先して再生
         if (currentTrack?.type != TrackType.UserRequest && track.type == TrackType.UserRequest) {
@@ -106,7 +110,7 @@ class TrackControls(private val guildPlayer: GuildPlayer, private val player: Au
         if (index != null) {
             queue.add(index, track)
         } else {
-            queue.add(track)
+            queue += track
         }
     }
 
@@ -115,25 +119,25 @@ class TrackControls(private val guildPlayer: GuildPlayer, private val player: Au
     private val nextUserRequestTrack: AudioTrack?
         get() = userRequestQueue.removeAtOrNull(0).apply {
             if (isRepeatPlaylistEnabled && this != null) {
-                userRequestQueue.add(makeCloneExactly())
+                userRequestQueue += makeCloneExactly()
             }
         }
     private val nextAutoPlaylistTrack: AudioTrack?
         get() = autoPlaylistQueue.removeAtOrNull(0).apply {
             if (this != null) {
-                autoPlaylistQueue.add(makeCloneExactly())
+                autoPlaylistQueue += makeCloneExactly()
             }
         }
     private val nextSoundCloudTrack: AudioTrack?
         get() = soundCloudQueue.removeAtOrNull(0).apply {
             if (isRepeatPlaylistEnabled && this != null) {
-                soundCloudQueue.add(makeCloneExactly())
+                soundCloudQueue += makeCloneExactly()
             }
         }
     private val nextNicoRankingTrack: AudioTrack?
         get() = nicoRankingQueue.removeAtOrNull(0).apply {
             if (isRepeatPlaylistEnabled && this != null) {
-                nicoRankingQueue.add(makeCloneExactly())
+                nicoRankingQueue += makeCloneExactly()
             }
         }
 

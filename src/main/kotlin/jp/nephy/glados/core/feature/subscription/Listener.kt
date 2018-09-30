@@ -3,12 +3,12 @@ package jp.nephy.glados.core.feature.subscription
 import jp.nephy.glados.core.GLaDOSConfig
 import jp.nephy.glados.core.Logger
 import jp.nephy.glados.core.feature.BotFeature
+import jp.nephy.glados.core.invocationException
 import jp.nephy.glados.core.nullableGuild
 import kotlinx.coroutines.experimental.CancellationException
 import kotlinx.coroutines.experimental.launch
 import net.dv8tion.jda.core.events.Event
 import net.dv8tion.jda.core.hooks.ListenerAdapter
-import java.lang.reflect.InvocationTargetException
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.reflect.KFunction
 import kotlin.reflect.full.isSubclassOf
@@ -48,18 +48,12 @@ class ListenerSubscriptionClient: SubscriptionClient<Listener>, ListenerAdapter(
         }.toList().forEach {
             launch {
                 try {
-                    it.execute(event)
+                    it.invoke(event)
                     logger.trace { "${it.instance.javaClass.simpleName}#${it.function.name} が実行されました. (${guild?.name})" }
                 } catch (e: CancellationException) {
                     return@launch
                 } catch (e: Exception) {
-                    val exception = if (e is InvocationTargetException) {
-                        e.targetException
-                    } else {
-                        e
-                    }
-
-                    logger.error(exception) { "[${it.instance.javaClass.simpleName}#${it.function.name}] 実行中に例外が発生しました." }
+                    logger.error(e.invocationException) { "[${it.instance.javaClass.simpleName}#${it.function.name}] 実行中に例外が発生しました." }
                 }
             }
         }

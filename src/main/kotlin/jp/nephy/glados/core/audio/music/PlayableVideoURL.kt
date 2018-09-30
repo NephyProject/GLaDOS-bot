@@ -22,6 +22,10 @@ enum class PlayableVideoURL(val friendlyName: String, vararg val regexes: Regex)
     Twitch(
             "Twitch",
             "(?:http(?:s)://)?(?:www\\.|go\\.)?twitch.tv/(?:[^/]+)".toRegex()
+    ),
+    Local(
+            "Local File",
+            "^/".toRegex()
     );
 
     fun match(input: String): Boolean {

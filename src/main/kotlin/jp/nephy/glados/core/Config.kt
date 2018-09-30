@@ -30,6 +30,8 @@ class GLaDOSConfig private constructor(override val json: JsonObject): JsonModel
     val ownerId by json.byNullableLong("owner_id")
     val prefix by json.byString { "!" }
     val parallelism by json.byNullableInt
+    val wuiHost by json.byString("wui_host") { "127.0.0.1" }
+    val wuiPort by json.byInt("wui_port") { 8080 }
     val guilds by json.byLambda { jsonObject.map { it.key to GuildConfig(it.value.jsonObject) }.toMap() }
 
     fun forGuild(guild: Guild?): GuildConfig? {

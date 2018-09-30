@@ -34,7 +34,7 @@ class SoundCloudClient(private val clientId: String) {
                 override fun onLoadTrack(track: AudioTrack) {
                     track.groupIdSetter = groupId
                     track.soundCloudCacheSetter = it
-                    guildPlayer.controls.add(track)
+                    guildPlayer.controls += track
                 }
             })
         }

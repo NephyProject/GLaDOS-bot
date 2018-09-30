@@ -6,10 +6,15 @@ import jp.nephy.glados.secret
 import jp.nephy.utils.stackTraceString
 import mu.KotlinLogging
 import org.slf4j.event.Level
+import java.util.logging.LogManager
 
 class Logger(private val name: String, private val useSlack: Boolean = true) {
     private val slack = SlackWebhook(secret.forKey("slack_webhook_url"))
     private val logger = KotlinLogging.logger(name)
+
+    init {
+        LogManager.getLogManager().reset()
+    }
 
     private fun (() -> Any).toStringSafe() = try {
         invoke().toString()
