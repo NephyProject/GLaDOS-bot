@@ -8,6 +8,7 @@ import io.ktor.client.engine.apache.Apache
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.http.HttpHeaders
+import io.ktor.http.encodeURLParameter
 import jp.nephy.glados.core.api.niconico.model.Ranking
 import jp.nephy.glados.core.api.niconico.model.SearchResult
 import jp.nephy.glados.core.api.niconico.param.RankingCategory
@@ -49,7 +50,7 @@ class NiconicoClient {
     }
 
     suspend fun search(query: String, target: SearchTarget = SearchTarget.Title, limit: Int = 10): SearchResult {
-        val url = "http://api.search.nicovideo.jp/api/v2/snapshot/video/contents/search?q=$query&targets=${target.name.toLowerCase()}&fields=contentId,title,description,tags,categoryTags,viewCounter,mylistCounter,commentCounter,lengthSeconds&_sort=-viewCounter&_limit=$limit&_context=GLaDOS"
+        val url = "http://api.search.nicovideo.jp/api/v2/snapshot/video/contents/search?q=${query.encodeURLParameter()}&targets=${target.name.toLowerCase()}&fields=contentId,title,description,tags,categoryTags,viewCounter,mylistCounter,commentCounter,lengthSeconds&_sort=-viewCounter&_limit=$limit&_context=GLaDOS"
         return get(url)
     }
 }

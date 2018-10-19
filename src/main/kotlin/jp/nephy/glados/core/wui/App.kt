@@ -53,6 +53,8 @@ fun Application.module() {
     install(Routing) {
         getTop()
         getDashboard()
+        getSoundsList()
+        getSoundFile()
 
         login()
         signout()

@@ -11,6 +11,7 @@ import io.ktor.pipeline.PipelineContext
 import io.ktor.request.httpMethod
 import io.ktor.request.path
 import io.ktor.response.respond
+import io.ktor.response.respondFile
 import io.ktor.response.respondRedirect
 import io.ktor.routing.Route
 import io.ktor.routing.get
@@ -19,6 +20,7 @@ import io.ktor.sessions.get
 import io.ktor.sessions.sessions
 import io.ktor.sessions.set
 import jp.nephy.SlackWebhook
+import jp.nephy.glados.features.SoundBot
 import jp.nephy.glados.secret
 import jp.nephy.jsonkt.JsonModel
 import jp.nephy.jsonkt.byLong
@@ -29,6 +31,8 @@ import okhttp3.MediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
+import java.nio.file.Files
+import java.nio.file.Paths
 
 private const val clientId = "292673941057568769"
 private const val clientSecret = "hNq8HR7chB7vpzhb0sfftedkjgYccz3l"
@@ -94,10 +98,62 @@ fun Route.getDashboard() {
                         +"."
                     }
                 }
-
-
             }
         }
+    }
+}
+
+fun Route.getSoundsList() {
+    get("/sounds") {
+        call.respondHtmlTemplate(NavLayout()) {
+            navContent {
+                table(classes = "table") {
+                    thead {
+                        tr {
+                            th {
+                                +"コマンド"
+                            }
+                            td {
+                                +"試聴"
+                            }
+                        }
+                    }
+                    tbody {
+                        SoundBot.listSounds().sortedBy { path -> path.fileName }.forEach { sound ->
+                            tr {
+                                th {
+                                    span {
+                                        +".${sound.fileName.toString().split(".").first()}"
+                                    }
+                                }
+                                td {
+                                    audio {
+                                        attributes["preload"] = "none"
+                                        controls = true
+
+                                        source {
+                                            src = "https://glados.nephy.jp/sounds/file/${sound.fileName}"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+fun Route.getSoundFile() {
+    get("/sounds/file/{filename}") {
+        val filename = call.parameters["filename"] ?: return@get call.respond(HttpStatusCode.NotFound)
+        val path = Paths.get("sounds", filename)
+        if (!Files.exists(path)) {
+            return@get call.respond(HttpStatusCode.NotFound)
+        }
+
+        call.respondFile(path.toFile())
     }
 }
 

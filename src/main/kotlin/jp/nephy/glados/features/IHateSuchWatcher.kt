@@ -71,7 +71,7 @@ class IHateSuchWatcher: BotFeature() {
                         embed {
                             author("${status.result.user.name} @${status.result.user.screenName}", "https://twitter.com/${status.result.user.screenName}", status.result.user.profileImageUrlHttps)
                             descriptionBuilder {
-                                appendln(status.result.fullText)
+                                appendln(status.result.fullText())
                                 appendln()
                                 append(matched.value)
                             }

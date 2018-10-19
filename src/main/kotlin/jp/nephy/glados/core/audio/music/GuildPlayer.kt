@@ -65,19 +65,19 @@ class GuildPlayer(val guild: Guild, val guildConfig: GLaDOSConfig.GuildConfig, p
     }
 
     suspend fun searchTrack(query: String, priority: SearchPriority, limit: Int = 20, handler: PlayerSearchResultHandler) {
-        if (priority == SearchPriority.Niconico || priority == SearchPriority.Undefined) {
-            val niconicoClient = NiconicoClient()
-            val nicoResult = niconicoClient.search(query, limit = limit)
-            if (nicoResult.data.isNotEmpty()) {
-                return handler.onFoundNiconicoResult(nicoResult)
-            }
-        }
-
         if (priority == SearchPriority.YouTube || priority == SearchPriority.Undefined) {
             val youtubeClient = YouTubeClient(secret.forKey("google_api_key"))
             val youtubeResult = youtubeClient.search(query, limit)
             if (youtubeResult.isNotEmpty()) {
                 return handler.onFoundYouTubeResult(youtubeResult)
+            }
+        }
+
+        if (priority == SearchPriority.Niconico || priority == SearchPriority.Undefined) {
+            val niconicoClient = NiconicoClient()
+            val nicoResult = niconicoClient.search(query, limit = limit)
+            if (nicoResult.data.isNotEmpty()) {
+                return handler.onFoundNiconicoResult(nicoResult)
             }
         }
 

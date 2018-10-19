@@ -38,7 +38,6 @@ import net.dv8tion.jda.core.events.guild.voice.GuildVoiceLeaveEvent
 import net.dv8tion.jda.core.events.message.guild.GuildMessageReceivedEvent
 import net.dv8tion.jda.core.events.message.guild.react.GuildMessageReactionAddEvent
 import net.dv8tion.jda.core.requests.restaction.MessageAction
-import java.io.File
 import kotlin.math.roundToInt
 
 class MusicPlayer: BotFeature() {
@@ -57,7 +56,7 @@ class MusicPlayer: BotFeature() {
     @Command(channelType = CommandChannelType.TextChannel, description = "指定されたメディアを再生します。", args = ["検索ワード|動画URL|プレイリストURL"], category = "Music Bot")
     suspend fun play(event: CommandEvent) {
         val guildPlayer = event.guild?.player ?: return
-        if (PlayableVideoURL.values().any { it.match(event.args) } || File(event.args.trim()).exists()) {
+        if (PlayableVideoURL.values().any { it.match(event.args) } || event.args.startsWith("http")) {
             guildPlayer.loadTrack(event.args, TrackType.UserRequest, object: PlayerLoadResultHandler {
                 override fun onLoadTrack(track: AudioTrack) {
                     event.reply {

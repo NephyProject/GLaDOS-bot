@@ -24,7 +24,7 @@ dependencies {
     compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
 
     /* Discord */
-    compile "net.dv8tion:JDA:3.8.0_427"
+    compile "net.dv8tion:JDA:3.8.1_437"
     compile "com.jagrosh:jda-utilities-commons:2.1.4"
 
     /* Music Bot */
@@ -37,7 +37,7 @@ dependencies {
     compile "io.ktor:ktor-html-builder:0.9.4"
 
     /* Twitter */
-    compile "jp.nephy:penicillin:3.0.16"
+    compile "jp.nephy:penicillin:3.0.17"
 
     /* Steam */
     compile "com.lukaspradel:steam-web-api:1.2"

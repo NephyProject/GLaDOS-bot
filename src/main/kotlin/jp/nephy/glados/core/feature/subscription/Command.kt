@@ -226,7 +226,7 @@ class CommandSubscriptionClient: SubscriptionClient<Command>, ListenerAdapter() 
                         embed {
                             title("コマンドエラー: `$text`")
                             descriptionBuilder {
-                                appendln("コマンドの引数が足りません。`!help`コマンドも必要に応じてご確認ください。")
+                                appendln("コマンドの引数の数が一致しません。`!help`コマンドも必要に応じてご確認ください。")
                                 append("実行例: `${subscription.primaryCommandSyntax} ${subscription.annotation.args.joinToString(" ") { "<$it>" }}`")
                             }
                             color(Color.Bad)
