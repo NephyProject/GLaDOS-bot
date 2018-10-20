@@ -104,7 +104,9 @@ fun Route.getDashboard() {
 }
 
 fun Route.getSoundsList() {
-    get("/sounds") {
+    get("/sounds/{guild}") {
+        val guildId = call.parameters["guild"]?.toLongOrNull() ?: return@get call.respond(HttpStatusCode.NotFound)
+
         call.respondHtmlTemplate(NavLayout()) {
             navContent {
                 table(classes = "table") {
@@ -132,7 +134,7 @@ fun Route.getSoundsList() {
                                         controls = true
 
                                         source {
-                                            src = "https://glados.nephy.jp/sounds/file/${sound.fileName}"
+                                            src = "https://glados.nephy.jp/sounds/file/$guildId/${sound.fileName}"
                                         }
                                     }
                                 }
@@ -146,9 +148,10 @@ fun Route.getSoundsList() {
 }
 
 fun Route.getSoundFile() {
-    get("/sounds/file/{filename}") {
+    get("/sounds/file/{guild}/{filename}") {
+        val guildId = call.parameters["guild"]?.toLongOrNull() ?: return@get call.respond(HttpStatusCode.NotFound)
         val filename = call.parameters["filename"] ?: return@get call.respond(HttpStatusCode.NotFound)
-        val path = Paths.get("sounds", filename)
+        val path = Paths.get("sounds", guildId.toString(), filename)
         if (!Files.exists(path)) {
             return@get call.respond(HttpStatusCode.NotFound)
         }
