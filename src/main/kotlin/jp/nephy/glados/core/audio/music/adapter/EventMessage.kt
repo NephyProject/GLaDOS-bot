@@ -83,6 +83,8 @@ class EventMessage(private val guildPlayer: GuildPlayer): AudioEventAdapter() {
                         color(Color.Plain)
                     }
                 }
+                TrackType.Sound -> {
+                }
             }
 
             timestamp()
@@ -90,6 +92,10 @@ class EventMessage(private val guildPlayer: GuildPlayer): AudioEventAdapter() {
     }
 
     override fun onTrackStart(player: AudioPlayer, track: AudioTrack) {
+        if (track.type == TrackType.Sound) {
+            return
+        }
+
         logger.info { "[${track.sourceManager.sourceName}] 現在再生中の曲は \"${track.info.effectiveTitle}\" by ${track.info.author} (${track.info.length.toMilliSecondString()}) です." }
 
         val channel = guildPlayer.guildConfig.textChannel("bot") ?: return
@@ -124,16 +130,28 @@ class EventMessage(private val guildPlayer: GuildPlayer): AudioEventAdapter() {
     }
 
     override fun onTrackEnd(player: AudioPlayer, track: AudioTrack, endReason: AudioTrackEndReason) {
+        if (track.type == TrackType.Sound) {
+            return
+        }
+
         if (!endReason.mayStartNext) {
             logger.info { "[${track.sourceManager.sourceName}] \"${track.info.effectiveTitle}\" by ${track.info.author} (${track.info.length.toMilliSecondString()}) の再生が停止しました. (${endReason.name})" }
         }
     }
 
     override fun onTrackStuck(player: AudioPlayer, track: AudioTrack, thresholdMs: Long) {
+        if (track.type == TrackType.Sound) {
+            return
+        }
+
         logger.info { "\"${track.info?.title}\" by ${track.info?.author} (${track.info?.length.toMilliSecondString()}) の再生がスタックしました. (閾値: ${thresholdMs.toMilliSecondString()})" }
     }
 
     override fun onTrackException(player: AudioPlayer, track: AudioTrack, exception: FriendlyException) {
+        if (track.type == TrackType.Sound) {
+            return
+        }
+
         logger.error(exception) { "トラック \"${track.info.effectiveTitle}\" の再生中に例外が発生しました。" }
         val channel = guildPlayer.guildConfig.textChannel("bot") ?: return
 

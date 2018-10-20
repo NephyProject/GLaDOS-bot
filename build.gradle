@@ -24,7 +24,7 @@ dependencies {
     compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
 
     /* Discord */
-    compile "net.dv8tion:JDA:3.8.1_437"
+    compile "net.dv8tion:JDA:3.8.1_439"
     compile "com.jagrosh:jda-utilities-commons:2.1.4"
 
     /* Music Bot */

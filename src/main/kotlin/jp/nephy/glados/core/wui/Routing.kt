@@ -119,7 +119,7 @@ fun Route.getSoundsList() {
                         }
                     }
                     tbody {
-                        SoundBot.listSounds().sortedBy { path -> path.fileName }.forEach { sound ->
+                        SoundBot.listSounds().forEach { sound ->
                             tr {
                                 th {
                                     span {
