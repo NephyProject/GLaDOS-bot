@@ -57,7 +57,7 @@ class VoteCommand: BotFeature() {
             }
         }.queue { message ->
             for (choice in choices) {
-                message.addReaction(choice.first()).complete()
+                message.addReaction(choice.first()).queue()
             }
             votes[message.idLong] = ConcurrentHashMap()
 
