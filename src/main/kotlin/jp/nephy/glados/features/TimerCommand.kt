@@ -5,6 +5,7 @@ import jp.nephy.glados.core.builder.reply
 import jp.nephy.glados.core.feature.BotFeature
 import jp.nephy.glados.core.feature.subscription.Command
 import jp.nephy.glados.core.feature.subscription.CommandEvent
+import jp.nephy.glados.core.feature.subscription.Listener
 import jp.nephy.utils.StringLinkedListCache
 import kotlinx.coroutines.experimental.delay
 import kotlinx.coroutines.experimental.launch
@@ -18,6 +19,7 @@ class TimerCommand: BotFeature() {
     private val timeFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
     private var activeTimers by StringLinkedListCache { emptyList() }
 
+    @Listener
     override fun onReady(event: ReadyEvent) {
         TimeUnit.SECONDS.sleep(30)
         for ((message, epoch) in activeTimers.decodeTimers()) {
