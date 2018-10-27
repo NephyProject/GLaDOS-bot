@@ -1,96 +1,139 @@
 package jp.nephy.glados.core.feature
 
-import io.ktor.util.findAllSupertypes
 import jp.nephy.glados.config
 import jp.nephy.glados.core.Logger
 import jp.nephy.glados.core.feature.subscription.*
-import net.dv8tion.jda.core.events.Event
+import kotlin.reflect.KFunction
+import kotlin.reflect.full.createType
+import kotlin.reflect.full.findAnnotation
+import kotlin.reflect.full.valueParameters
 import kotlin.reflect.jvm.kotlinFunction
 import kotlin.system.measureTimeMillis
 
-class FeatureManager(prefix: String) {
+class FeatureManager(private val prefix: String) {
     private val logger = Logger("GLaDOS.FeatureManager", false)
     val commandClient = CommandSubscriptionClient()
-    val listenerClient = ListenerSubscriptionClient()
-    val poolClient = LoopSubscriptionClient()
+    val listenerEventClient = ListenerEventSubscriptionClient()
+    val loopClient = LoopSubscriptionClient()
+    private val audioEventSubscriptions = arrayListOf<EventSubscription>()
+    private val connectionListenerSubscriptions = arrayListOf<EventSubscription>()
 
-    init {
+    fun loadAll() {
         val loadingTimeMs = measureTimeMillis {
-            ClassPath(prefix).classes<BotFeature>()
-                    .forEach {
-                        val instance = try {
-                            it.newInstance()
-                        } catch (e: Exception) {
-                            logger.error(e) { "${it.canonicalName} のインスタンスの作成に失敗しました." }
-                            return@forEach
-                        }
+            for (it in ClassPath(prefix).classes<BotFeature>()) {
+                val instance = try {
+                    it.newInstance()
+                } catch (e: Exception) {
+                    logger.error(e) { "${it.canonicalName} のインスタンスの作成に失敗しました。" }
+                    continue
+                }
 
-                        load(instance)
-                    }
+                loadClass(instance)
+            }
+
             commandClient.onReady()
-            listenerClient.onReady()
+            listenerEventClient.onReady()
         }
 
-        logger.info { "${loadingTimeMs}ms でFeatureのロードを完了しました." }
+        logger.info { "${loadingTimeMs}ms で Feature のロードを完了しました。" }
     }
 
-    private fun load(instance: BotFeature) {
-        val globalGuildKeys = instance.javaClass.getAnnotation(Feature::class.java)?.guilds.orEmpty()
+    fun bindTo(client: AudioEventSubscriptionClient) = client.apply {
+        subscriptions.addAll(audioEventSubscriptions.filter { it.matches(client.guildPlayer.guild) })
+        onReady()
+    }
 
-        instance.javaClass.declaredMethods.filter { !it.isDefault }.sortedBy { it.name }.forEach {
-            val function = it.kotlinFunction ?: return@forEach
-            when {
-                it.isAnnotationPresent(Command::class.java) -> {
-                    if (it.parameterTypes.first() == CommandEvent::class.java && ((function.isSuspend && it.parameterTypes.size == 2) || (!function.isSuspend && it.parameterTypes.size == 1))) {
-                        val methodAnnotation = it.getAnnotation(Command::class.java)
-                        val guilds = if (methodAnnotation.guilds.isNotEmpty()) {
-                            methodAnnotation.guilds
-                        } else {
-                            globalGuildKeys
-                        }.mapNotNull {
-                            config.guilds[it]
-                        }
+    fun bindTo(client: ConnectionListenerSubscriptionClient) = client.apply {
+        subscriptions.addAll(connectionListenerSubscriptions.filter { it.matches(client.guild) })
+        onReady()
+    }
 
-                        commandClient.subscriptions += CommandSubscription(methodAnnotation, instance, function, guilds)
-                        logger.info { "Command: ${instance.javaClass.simpleName}#${it.name} をロードしました." }
-                    } else {
-                        logger.warn { "[${instance.javaClass.simpleName}#${it.name}] @Command が付与されていますが, 引数の型がCommandEventではありません. スキップします." }
-                    }
+    private val listenerAdapterMethods = DiscordEventModel::class.java.declaredMethods.filter { it.isAnnotationPresent(FromListenerAdapter::class.java) }.mapNotNull { it.kotlinFunction }
+    private val connectionListenerMethods = DiscordEventModel::class.java.declaredMethods.filter { it.isAnnotationPresent(FromConnectionListener::class.java) }.mapNotNull { it.kotlinFunction }
+    private val audioEventAdapterMethods = DiscordEventModel::class.java.declaredMethods.filter { it.isAnnotationPresent(FromAudioEventAdapter::class.java) }.mapNotNull { it.kotlinFunction }
+
+    @Suppress("UNUSED")
+    private fun loadClass(instance: BotFeature) {
+        val globalGuildKeys = instance::class.findAnnotation<Feature>()?.guilds.orEmpty()
+
+        fun KFunction<*>.loadCommand(annotation: Command): Boolean {
+            return if (valueParameters.size == 1 && valueParameters.first().type == CommandEvent::class.createType()) {
+                val guilds = annotation.guilds.ifEmpty {
+                    globalGuildKeys
+                }.mapNotNull {
+                    config.guilds[it]
                 }
-                it.isAnnotationPresent(Listener::class.java) -> {
-                    if (Event::class.java in it.parameters.first().type.findAllSupertypes() && ((function.isSuspend && it.parameterTypes.size == 2) || (!function.isSuspend && it.parameterTypes.size == 1))) {
-                        val methodAnnotation = it.getAnnotation(Listener::class.java)
-                        val guilds = if (methodAnnotation.guilds.isNotEmpty()) {
-                            methodAnnotation.guilds
-                        } else {
-                            globalGuildKeys
-                        }.mapNotNull {
-                            config.guilds[it]
-                        }
 
-                        listenerClient.subscriptions += ListenerSubscription(methodAnnotation, instance, function, guilds)
-                        logger.info { "Listener: ${instance.javaClass.simpleName}#${it.name} をロードしました." }
-                    } else {
-                        logger.warn { "[${instance.javaClass.simpleName}#${it.name}] @Listener が付与されていますが, 引数の型がEventを継承していません. スキップします." }
-                    }
+                commandClient.subscriptions += CommandSubscription(annotation, instance, this, guilds)
+                logger.info { "Command: ${instance.javaClass.simpleName}#$name をロードしました。" }
+                true
+            } else {
+                logger.warn { "[${instance.javaClass.simpleName}#$name] @Command が付与されていますが, 引数が [CommandEvent] ではありません。スキップします。" }
+                false
+            }
+        }
+
+        fun KFunction<*>.loadLoop(annotation: Loop): Boolean {
+            return if (valueParameters.isEmpty()) {
+                loopClient.subscriptions += LoopSubscription(annotation, instance, this)
+                logger.info { "Loop: ${instance.javaClass.simpleName}#$name をロードしました。" }
+                true
+            } else {
+                logger.warn { "[${instance.javaClass.simpleName}#$name] @Loop が付与されていますが, 引数の数は 0 である必要があります。スキップします。" }
+                false
+            }
+        }
+
+        fun KFunction<*>.loadEventListener(annotation: Event): Boolean {
+            val guilds = annotation.guilds.ifEmpty {
+                globalGuildKeys
+            }.mapNotNull {
+                config.guilds[it]
+            }
+
+            return when {
+                this match listenerAdapterMethods -> {
+                    listenerEventClient.subscriptions += EventSubscription(annotation, instance, this, guilds)
+                    logger.info { "JDAEvent: ${instance.javaClass.simpleName}#$name をロードしました。" }
+                    true
                 }
-                it.isAnnotationPresent(Loop::class.java) -> {
-                    if ((function.isSuspend && it.parameterTypes.size == 1) || (!function.isSuspend && it.parameterTypes.isEmpty())) {
-                        val methodAnnotation = it.getAnnotation(Loop::class.java)
-
-                        poolClient.subscriptions += LoopSubscription(methodAnnotation, instance, function)
-                        logger.info { "Loop: ${instance.javaClass.simpleName}#${it.name} をロードしました." }
-                    } else {
-                        logger.warn { "[${instance.javaClass.simpleName}#${it.name}] @Loop が付与されていますが, 引数の数は0である必要があります. スキップします." }
-                    }
+                this match connectionListenerMethods -> {
+                    connectionListenerSubscriptions += EventSubscription(annotation, instance, this, guilds)
+                    logger.info { "ConnectionListener: ${instance.javaClass.simpleName}#$name をロードしました。" }
+                    true
+                }
+                this match audioEventAdapterMethods -> {
+                    audioEventSubscriptions += EventSubscription(annotation, instance, this, guilds)
+                    logger.info { "AudioEvent: ${instance.javaClass.simpleName}#$name をロードしました。" }
+                    true
                 }
                 else -> {
-                    if (it.name.startsWith("on") && it.parameterTypes.size == 1 && Event::class.java in it.parameters.first().type.findAllSupertypes()) {
-                        logger.warn { "[${instance.javaClass.simpleName}#${it.name}] イベントリスナーの可能性がありますが, @Listener アノテーションが付与されていません." }
-                    }
-                    return@forEach
+                    logger.warn { "[${instance.javaClass.simpleName}#$name] イベントリスナーですが, @Event が付与されていません。" }
+                    false
                 }
             }
         }
+
+        for (function in instance.javaClass.declaredMethods.filter { !it.isDefault }.mapNotNull { it.kotlinFunction }.sortedBy { it.name }) {
+            val annotation = function.findAnnotation<Command>() ?: function.findAnnotation<Loop>() ?: function.findAnnotation<Event>()
+
+            if (annotation is Command && function.loadCommand(annotation)) {
+                continue
+            } else if (annotation is Loop && function.loadLoop(annotation)) {
+                continue
+            } else if (annotation is Event && function.loadEventListener(annotation)) {
+                continue
+            }
+        }
+    }
+
+    private infix fun KFunction<*>.match(originalFunctions: List<KFunction<*>>): Boolean {
+        originalFunctions.filter { it.valueParameters.size == valueParameters.size }.find { originalFunction ->
+            originalFunction.valueParameters.zip(valueParameters).all {
+                it.first.type == it.second.type
+            }
+        } ?: return false
+
+        return true
     }
 }

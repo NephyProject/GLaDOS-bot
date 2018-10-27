@@ -15,8 +15,9 @@ import jp.nephy.glados.core.api.niconico.param.RankingCategory
 import jp.nephy.glados.core.api.niconico.param.RankingPeriod
 import jp.nephy.glados.core.api.niconico.param.RankingType
 import jp.nephy.glados.core.api.niconico.param.SearchTarget
-import jp.nephy.glados.core.audio.music.*
-import jp.nephy.jsonkt.JsonModel
+import jp.nephy.glados.core.audio.player.*
+import jp.nephy.glados.userAgent
+import jp.nephy.jsonkt.delegation.JsonModel
 import jp.nephy.jsonkt.parse
 import java.net.URL
 import java.util.*
@@ -26,7 +27,7 @@ class NiconicoClient {
 
     private suspend inline fun <reified T: JsonModel> get(url: String): T {
         return httpClient.get<String>(url) {
-            header(HttpHeaders.UserAgent, "GLaDOS-bot/1.0.0 (+admin@nephy.jp)")
+            header(HttpHeaders.UserAgent, userAgent)
         }.parse()
     }
 
@@ -38,11 +39,13 @@ class NiconicoClient {
 
     fun play(guildPlayer: GuildPlayer, type: RankingType, period: RankingPeriod, category: RankingCategory) {
         val groupId = Date().time
-        getRanking(type, period, category).videos.filter { PlayableVideoURL.Niconico.match(it.link) }.forEach {
-            guildPlayer.loadTrack(it.link, TrackType.NicoRanking, object: PlayerLoadResultHandler {
+        getRanking(type, period, category).videos.filter { PlayableURL.Niconico.match(it.link) }.forEach { ranking ->
+            guildPlayer.loadTrack(ranking.link, TrackType.NicoNicoRanking, object: PlayerLoadResultHandler {
                 override fun onLoadTrack(track: AudioTrack) {
-                    track.groupIdSetter = groupId
-                    track.nicoRankingCacheSetter = it
+                    track.data.also {
+                        it.groupId = groupId
+                        it.nicoNicoRanking = ranking
+                    }
                     guildPlayer.controls += track
                 }
             })

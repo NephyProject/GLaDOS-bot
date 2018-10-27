@@ -9,15 +9,15 @@
             <pattern>[%highlight(%-5level)] [%d{HH:mm:ss.SSS}] [%green(%logger) / %thread] %m%n</pattern>
         </encoder>
     </appender>
-    <appender name="DEBUG_FILE" class="ch.qos.logback.core.FileAppender">
-        <file>logs/debug_${timestamp}.log</file>
+    <appender name="INFO_FILE" class="ch.qos.logback.core.FileAppender">
+        <file>logs/info_${timestamp}.log</file>
         <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
             <charset>UTF-8</charset>
             <outputPatternAsHeader>false</outputPatternAsHeader>
             <pattern>[%-5level] [%d{HH:mm:ss.SSS}] [%logger / %thread] %m%n</pattern>
         </encoder>
         <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
-            <level>DEBUG</level>
+            <level>INFO</level>
         </filter>
     </appender>
     <appender name="ERROR_FILE" class="ch.qos.logback.core.FileAppender">
@@ -32,13 +32,13 @@
         </filter>
     </appender>
 
-    <logger name="GLaDOS" level="ALL" />
-    <logger name="Feature" level="ALL" />
+    <logger name="GLaDOS" level="DEBUG" />
+    <logger name="Feature" level="DEBUG" />
     <logger name="net.dv8tion.jda" level="ERROR" />
 
     <root level="INFO">
         <appender-ref ref="STDOUT" />
-        <appender-ref ref="DEBUG_FILE" />
+        <appender-ref ref="INFO_FILE" />
         <appender-ref ref="ERROR_FILE" />
     </root>
 </configuration>

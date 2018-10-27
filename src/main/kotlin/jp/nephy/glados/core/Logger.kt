@@ -1,6 +1,5 @@
 package jp.nephy.glados.core
 
-import jp.nephy.SlackWebhook
 import jp.nephy.glados.isDebugMode
 import jp.nephy.glados.secret
 import jp.nephy.utils.stackTraceString

@@ -1,23 +1,21 @@
 package jp.nephy.glados.features
 
 import jp.nephy.glados.config
-import jp.nephy.glados.core.addRole
+import jp.nephy.glados.core.*
 import jp.nephy.glados.core.builder.Color
-import jp.nephy.glados.core.builder.deleteQueue
 import jp.nephy.glados.core.builder.reply
 import jp.nephy.glados.core.feature.*
-import jp.nephy.glados.core.feature.subscription.*
-import jp.nephy.glados.core.fullName
-import jp.nephy.glados.core.isBotOrSelfUser
-import jp.nephy.glados.core.removeRole
-import jp.nephy.utils.BooleanLinkedSingleCache
-import jp.nephy.utils.IntLinkedSingleCache
+import jp.nephy.glados.core.feature.subscription.Command
+import jp.nephy.glados.core.feature.subscription.CommandEvent
+import jp.nephy.glados.core.feature.subscription.Event
+import jp.nephy.glados.core.feature.subscription.Loop
 import net.dv8tion.jda.core.Permission
 import net.dv8tion.jda.core.entities.Member
 import net.dv8tion.jda.core.events.guild.voice.GuildVoiceJoinEvent
 import net.dv8tion.jda.core.events.guild.voice.GuildVoiceLeaveEvent
 import net.dv8tion.jda.core.events.guild.voice.GuildVoiceMoveEvent
 import net.dv8tion.jda.core.events.guild.voice.GuildVoiceMuteEvent
+import net.dv8tion.jda.core.events.user.update.UserUpdateGameEvent
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
@@ -29,11 +27,10 @@ class VoiceChannelWatcher: BotFeature() {
     private val generalVCTextChannels by textChannelsLazy("general_vc")
     private val invisibleVoiceChannels by voiceChannelsLazy("invisible")
     private val invisibleTextChannels by textChannelsLazy("invisible")
+    private val vrcVoiceChannels by voiceChannelsLazy("vrchat")
 
-    private var invisibleChannelLocked by BooleanLinkedSingleCache { false }
-    private val noMuteMovedWarningCooldowns = ConcurrentHashMap<Member, Long>()
-    private val muteLimitCountdowns = ConcurrentHashMap<Member, Int>()
-    private var maxMuteSeconds by IntLinkedSingleCache { 5 * 60 }
+    private val muteLimitCountdowns = ConcurrentHashMap<Member, Long>()
+    private val noMuteMovedWarningCooldowns by MongoUserConfigStore("GLaDOSNoMuteMovedWarningCooldown", false) { 0L }
 
     /*
         AFK以外のボイスチャンネルに参加した場合       -> GeneralVC権限付与
@@ -82,11 +79,17 @@ class VoiceChannelWatcher: BotFeature() {
                     member.removeInvisibleVoiceChannelPermission()
                     member.removeInkyaRole()
                 }
+
+                if (member.game?.name == "VRChat") {
+                    member.addVRCVoiceChannelPermission()
+                } else {
+                    member.removeVRCVoiceChannelPermission()
+                }
             }
         }
 
-        for ((member, elapsedSeconds) in muteLimitCountdowns.toMap()) {
-            if (maxMuteSeconds <= elapsedSeconds) {
+        for ((member, elapsedSeconds) in muteLimitCountdowns) {
+            if (maxMuteSeconds[member.guild] < elapsedSeconds) {
                 if (member.voiceState.channel !in muteLimitVoiceChannels) {
                     member.stopMuting()
                     continue
@@ -97,32 +100,27 @@ class VoiceChannelWatcher: BotFeature() {
                     continue
                 }
 
-                member.guild.controller.moveVoiceMember(member, member.guild.afkChannel).queue()
+                member.guild.controller.moveVoiceMember(member, member.guild.afkChannel).launch()
                 member.stopMuting()
                 continue
             }
 
-            muteLimitCountdowns.replace(member, elapsedSeconds + 5)
-            logger.debug { "${member.fullName} は ${elapsedSeconds + 5}秒間ミュートしています." }
+            muteLimitCountdowns[member] = elapsedSeconds + 5
+            logger.debug { "${member.fullName} は ${elapsedSeconds + 5}秒間ミュートしています。" }
         }
     }
 
-    private val maxMuteMininumSeconds = 10
-    @Command(permission = CommandPermission.AdminOnly, description = "[Mute Limit]チャンネルで適用する最大のミュート時間を指定します。", args = ["秒"], category = "VC Watcher")
+    private val maxMuteSeconds by MongoGuildConfigStore("GLaDOSMaxMuteSecond") { 5 * 60 }
+    @Command(permission = Command.Permission.AdminOnly, description = "[Mute Limit]チャンネルで適用する最大のミュート時間を指定します。", args = ["秒"], category = "VC Watcher", channelType = Command.ChannelType.TextChannel)
     fun maxmute(event: CommandEvent) {
         val n = event.args.toIntOrNull()
-        if (n == null || n < maxMuteMininumSeconds) {
-            return event.reply {
-                embed {
-                    title("maxmute")
-                    description { "不正な値です。maxmuteは${maxMuteMininumSeconds}以上の整数を指定できます。" }
-                    color(Color.Bad)
-                    timestamp()
-                }
-            }.queue()
+        reject(n == null || n < 10) {
+            event.embedError("!maxmute") {
+                "不正な値です。maxmuteは10以上の整数を指定できます。"
+            }
         }
 
-        maxMuteSeconds = n
+        maxMuteSeconds[event.guild!!] = n
 
         event.reply {
             embed {
@@ -131,16 +129,17 @@ class VoiceChannelWatcher: BotFeature() {
                 color(Color.Good)
                 timestamp()
             }
-        }.queue()
+        }.launch()
     }
 
-    @Command(description = "[Invisible]チャンネルをロックします。", category = "VC Watcher")
+    private val invisibleChannelLocked by MongoGuildConfigStore("GLaDOSInvisibleChannelState") { false }
+    @Command(description = "[Invisible]チャンネルをロックします。", category = "VC Watcher", channelType = Command.ChannelType.TextChannel)
     fun lock(event: CommandEvent) {
         if (event.textChannel !in invisibleTextChannels) {
             return
         }
 
-        if (invisibleChannelLocked) {
+        if (invisibleChannelLocked[event.guild!!]) {
             event.reply {
                 embed {
                     title("lock")
@@ -152,9 +151,9 @@ class VoiceChannelWatcher: BotFeature() {
                     }
                     timestamp()
                 }
-            }.deleteQueue(30, TimeUnit.SECONDS)
+            }.launchAndDelete(30, TimeUnit.SECONDS)
         } else {
-            invisibleChannelLocked = true
+            invisibleChannelLocked[event.guild] = true
             event.reply {
                 embed {
                     title("lock")
@@ -166,7 +165,7 @@ class VoiceChannelWatcher: BotFeature() {
                     }
                     timestamp()
                 }
-            }.deleteQueue(30, TimeUnit.SECONDS)
+            }.launchAndDelete(30, TimeUnit.SECONDS)
         }
     }
 
@@ -176,7 +175,7 @@ class VoiceChannelWatcher: BotFeature() {
             return
         }
 
-        if (!invisibleChannelLocked) {
+        if (!invisibleChannelLocked[event.guild!!]) {
             event.reply {
                 embed {
                     title("unlock")
@@ -186,9 +185,9 @@ class VoiceChannelWatcher: BotFeature() {
                     }
                     timestamp()
                 }
-            }.deleteQueue(30, TimeUnit.SECONDS)
+            }.launchAndDelete(30, TimeUnit.SECONDS)
         } else {
-            invisibleChannelLocked = false
+            invisibleChannelLocked[event.guild] = false
             event.reply {
                 embed {
                     title("unlock")
@@ -198,12 +197,12 @@ class VoiceChannelWatcher: BotFeature() {
                     }
                     timestamp()
                 }
-            }.deleteQueue(30, TimeUnit.SECONDS)
+            }.launchAndDelete(30, TimeUnit.SECONDS)
         }
     }
 
-    @Listener
-    override fun onGuildVoiceJoin(event: GuildVoiceJoinEvent) {
+    @Event
+    override suspend fun onGuildVoiceJoin(event: GuildVoiceJoinEvent) {
         if (event.voiceState.channel != event.guild.afkChannel) {
             event.member.addGeneralVCPermission()
             if (!event.voiceState.isMuted) {
@@ -222,8 +221,8 @@ class VoiceChannelWatcher: BotFeature() {
         }
     }
 
-    @Listener
-    override fun onGuildVoiceLeave(event: GuildVoiceLeaveEvent) {
+    @Event
+    override suspend fun onGuildVoiceLeave(event: GuildVoiceLeaveEvent) {
         event.member.removeGeneralVCPermission()
         event.member.removeInvisibleTextChannelPermission()
         event.member.removeInvisibleVoiceChannelPermission()
@@ -231,12 +230,12 @@ class VoiceChannelWatcher: BotFeature() {
         event.member.stopMuting()
 
         if (event.channelLeft in invisibleVoiceChannels && event.channelLeft.members.isEmpty()) {
-            invisibleChannelLocked = false
+            invisibleChannelLocked[event.guild] = false
         }
     }
 
-    @Listener
-    override fun onGuildVoiceMove(event: GuildVoiceMoveEvent) {
+    @Event
+    override suspend fun onGuildVoiceMove(event: GuildVoiceMoveEvent) {
         if (event.channelLeft == event.guild.afkChannel) {
             event.member.addGeneralVCPermission()
             if (!event.voiceState.isMuted) {
@@ -263,7 +262,7 @@ class VoiceChannelWatcher: BotFeature() {
         }
 
         if (event.channelLeft in invisibleVoiceChannels && event.channelLeft.members.isEmpty()) {
-            invisibleChannelLocked = false
+            invisibleChannelLocked[event.guild] = false
         }
 
         if (event.channelJoined in invisibleVoiceChannels) {
@@ -280,13 +279,13 @@ class VoiceChannelWatcher: BotFeature() {
                         }
                         timestamp()
                     }
-                }.deleteQueue(30, TimeUnit.SECONDS)
+                }.launchAndDelete(30, TimeUnit.SECONDS)
             }
         }
     }
 
-    @Listener
-    override fun onGuildVoiceMute(event: GuildVoiceMuteEvent) {
+    @Event
+    override suspend fun onGuildVoiceMute(event: GuildVoiceMuteEvent) {
         if (event.voiceState.channel !in invisibleVoiceChannels && event.isMuted) {
             event.member.removeInvisibleTextChannelPermission()
             event.member.removeInvisibleVoiceChannelPermission()
@@ -306,6 +305,21 @@ class VoiceChannelWatcher: BotFeature() {
                 event.member.startMuting()
             } else {
                 event.member.stopMuting()
+            }
+        }
+    }
+
+    @Event
+    override suspend fun onUserUpdateGame(event: UserUpdateGameEvent) {
+        when {
+            event.oldGame?.name == event.newGame?.name -> {
+                return
+            }
+            event.newGame?.name == "VRChat" -> {
+                event.member.addVRCVoiceChannelPermission()
+            }
+            event.oldGame?.name == "VRChat" -> {
+                event.member.removeVRCVoiceChannelPermission()
             }
         }
     }
@@ -354,12 +368,12 @@ class VoiceChannelWatcher: BotFeature() {
                             color(Color.Bad)
                             timestamp()
                         }
-                    }.deleteQueue(30)
+                    }.launchAndDelete(30, TimeUnit.SECONDS)
                 }
                 updateNoMuteMovedWarningCooldown()
             }
 
-            guild.controller.moveVoiceMember(this, guild.afkChannel).queue()
+            guild.controller.moveVoiceMember(this, guild.afkChannel).launch()
         }
     }
 
@@ -369,7 +383,11 @@ class VoiceChannelWatcher: BotFeature() {
 
     private val noMuteMovedWarningThresholdSeconds = 10
     private fun Member.checkNoMuteMovedWarningCooldown(): Boolean {
-        val time = noMuteMovedWarningCooldowns[this] ?: return true
+        val time = noMuteMovedWarningCooldowns[this]
+        if (time == 0L) {
+            return true
+        }
+
         return Date().time - time > 1000 * noMuteMovedWarningThresholdSeconds
     }
 
@@ -378,7 +396,7 @@ class VoiceChannelWatcher: BotFeature() {
             return
         }
 
-        muteLimitCountdowns.putIfAbsent(this, 0)
+        muteLimitCountdowns[this] = 0
     }
 
     private fun Member.stopMuting() {
@@ -399,7 +417,7 @@ class VoiceChannelWatcher: BotFeature() {
                 it.createPermissionOverride(this)
                         .setAllow(Permission.MESSAGE_READ, Permission.MESSAGE_WRITE, Permission.MESSAGE_TTS, Permission.MESSAGE_EMBED_LINKS, Permission.MESSAGE_ATTACH_FILES, Permission.MESSAGE_HISTORY, Permission.MESSAGE_MENTION_EVERYONE, Permission.MESSAGE_EXT_EMOJI, Permission.MESSAGE_ADD_REACTION)
                         .setDeny(Permission.CREATE_INSTANT_INVITE, Permission.MANAGE_CHANNEL, Permission.MANAGE_ROLES, Permission.MANAGE_WEBHOOKS, Permission.MESSAGE_MANAGE)
-                        .queue()
+                        .launch()
             }
         }
     }
@@ -410,12 +428,12 @@ class VoiceChannelWatcher: BotFeature() {
         }
 
         generalVCTextChannels.textChannelOf(guild) {
-            it.getPermissionOverride(this)?.delete()?.queue()
+            it.getPermissionOverride(this)?.delete()?.launch()
         }
     }
 
     private fun Member.addInvisibleVoiceChannelPermission() {
-        if (user.isBotOrSelfUser || invisibleChannelLocked) {
+        if (user.isBotOrSelfUser || invisibleChannelLocked[guild]) {
             return
         }
 
@@ -424,13 +442,13 @@ class VoiceChannelWatcher: BotFeature() {
                 it.createPermissionOverride(this)
                         .setAllow(Permission.VIEW_CHANNEL, Permission.VOICE_CONNECT, Permission.VOICE_SPEAK, Permission.VOICE_USE_VAD)
                         .setDeny(Permission.CREATE_INSTANT_INVITE, Permission.MANAGE_CHANNEL, Permission.MANAGE_ROLES, Permission.MANAGE_WEBHOOKS, Permission.VOICE_MUTE_OTHERS, Permission.VOICE_DEAF_OTHERS, Permission.VOICE_MOVE_OTHERS, Permission.PRIORITY_SPEAKER)
-                        .queue()
+                        .launch()
             }
         }
     }
 
     private fun Member.addInvisibleTextChannelPermission() {
-        if (user.isBotOrSelfUser || invisibleChannelLocked) {
+        if (user.isBotOrSelfUser || invisibleChannelLocked[guild]) {
             return
         }
 
@@ -439,7 +457,7 @@ class VoiceChannelWatcher: BotFeature() {
                 it.createPermissionOverride(this)
                         .setAllow(Permission.MESSAGE_READ, Permission.MESSAGE_WRITE, Permission.MESSAGE_TTS, Permission.MESSAGE_EMBED_LINKS, Permission.MESSAGE_ATTACH_FILES, Permission.MESSAGE_MENTION_EVERYONE, Permission.MESSAGE_EXT_EMOJI, Permission.MESSAGE_ADD_REACTION)
                         .setDeny(Permission.CREATE_INSTANT_INVITE, Permission.MANAGE_CHANNEL, Permission.MANAGE_ROLES, Permission.MANAGE_WEBHOOKS, Permission.MESSAGE_MANAGE, Permission.MESSAGE_HISTORY)
-                        .queue()
+                        .launch()
             }
         }
     }
@@ -450,7 +468,7 @@ class VoiceChannelWatcher: BotFeature() {
         }
 
         invisibleVoiceChannels.voiceChannelOf(guild) {
-            it.getPermissionOverride(this)?.delete()?.queue()
+            it.getPermissionOverride(this)?.delete()?.launch()
         }
     }
 
@@ -460,7 +478,32 @@ class VoiceChannelWatcher: BotFeature() {
         }
 
         invisibleTextChannels.textChannelOf(guild) {
-            it.getPermissionOverride(this)?.delete()?.queue()
+            it.getPermissionOverride(this)?.delete()?.launch()
+        }
+    }
+
+    private fun Member.addVRCVoiceChannelPermission() {
+        if (user.isBotOrSelfUser) {
+            return
+        }
+
+        vrcVoiceChannels.voiceChannelOf(guild) {
+            if (it.getPermissionOverride(this) == null) {
+                it.createPermissionOverride(this)
+                        .setAllow(Permission.VIEW_CHANNEL, Permission.VOICE_CONNECT, Permission.VOICE_SPEAK, Permission.VOICE_USE_VAD)
+                        .setDeny(Permission.CREATE_INSTANT_INVITE, Permission.MANAGE_CHANNEL, Permission.MANAGE_ROLES, Permission.MANAGE_WEBHOOKS, Permission.VOICE_MUTE_OTHERS, Permission.VOICE_DEAF_OTHERS, Permission.VOICE_MOVE_OTHERS, Permission.PRIORITY_SPEAKER)
+                        .launch()
+            }
+        }
+    }
+
+    private fun Member.removeVRCVoiceChannelPermission() {
+        if (user.isBotOrSelfUser) {
+            return
+        }
+
+        vrcVoiceChannels.voiceChannelOf(guild) {
+            it.getPermissionOverride(this)?.delete()?.launch()
         }
     }
 }

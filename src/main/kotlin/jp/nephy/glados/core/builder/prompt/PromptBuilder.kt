@@ -1,9 +1,9 @@
 package jp.nephy.glados.core.builder.prompt
 
 import jp.nephy.glados.core.builder.Color
-import jp.nephy.glados.core.builder.deleteQueue
 import jp.nephy.glados.core.builder.reply
 import jp.nephy.glados.core.builder.wait
+import jp.nephy.glados.core.launch
 import jp.nephy.glados.eventWaiter
 import jp.nephy.utils.joinToStringIndexed
 import net.dv8tion.jda.core.entities.Member
@@ -11,6 +11,7 @@ import net.dv8tion.jda.core.entities.Message
 import net.dv8tion.jda.core.entities.MessageChannel
 import net.dv8tion.jda.core.events.message.guild.GuildMessageReceivedEvent
 import net.dv8tion.jda.core.events.message.guild.react.GuildMessageReactionAddEvent
+import java.util.concurrent.TimeUnit
 
 class PromptBuilder(val channel: MessageChannel, val target: Member) {
     inline fun <T: PromptEmoji, reified R: Enum<T>> emoji(
@@ -50,12 +51,12 @@ class PromptBuilder(val channel: MessageChannel, val target: Member) {
                 color(color)
                 timestamp()
             }
-        }.queue { m ->
+        }.launch { m ->
             enumConstants.forEach {
-                m.addReaction(it.emoji).queue({}, {})
+                m.addReaction(it.emoji).launch()
             }
 
-            eventWaiter.wait<GuildMessageReactionAddEvent>({ user.idLong == target.user.idLong && messageIdLong == m.idLong && !enumConstants.none { it.emoji == reactionEmote.name } }, timeoutSec?.times(1000L), { m.delete().queue({}, {}) }) {
+            eventWaiter.wait<GuildMessageReactionAddEvent>({ user.idLong == target.user.idLong && messageIdLong == m.idLong && !enumConstants.none { it.emoji == reactionEmote.name } }, timeoutSec?.times(1000L), { m.delete().launch() }) {
                 val selected = enumConstants.find { it.emoji == reactionEmote.name }!!
 
                 channel.reply(target) {
@@ -70,8 +71,9 @@ class PromptBuilder(val channel: MessageChannel, val target: Member) {
                         color(color)
                         timestamp()
                     }
-                }.deleteQueue(10) {
-                    m.delete().queue({}, {})
+                }.launch(10, TimeUnit.SECONDS) {
+                    it.delete().launch()
+                    m.delete().launch()
                     @Suppress("UNCHECKED_CAST")
                     then(selected as R, it, this)
                 }
@@ -128,12 +130,12 @@ class PromptBuilder(val channel: MessageChannel, val target: Member) {
                 color(color)
                 timestamp()
             }
-        }.queue { m ->
+        }.launch { m ->
             eventWaiter.wait<GuildMessageReceivedEvent>({
-                member.user.idLong == target.user.idLong && digit.containsMatchIn(message.contentDisplay)
-            }, timeoutSec?.times(1000L), {
-                m.delete().queue({}, {})
-            }) {
+                                                            member.user.idLong == target.user.idLong && digit.containsMatchIn(message.contentDisplay)
+                                                        }, timeoutSec?.times(1000L), {
+                                                            m.delete().launch()
+                                                        }) {
                 val number = digit.find(message.contentDisplay)!!.value.toInt()
                 @Suppress("UNCHECKED_CAST")
                 val selected = enumConstants.getOrElse(number) { default as T }
@@ -150,8 +152,9 @@ class PromptBuilder(val channel: MessageChannel, val target: Member) {
                         color(color)
                         timestamp()
                     }
-                }.deleteQueue(30) {
-                    m.delete().queue({}, {})
+                }.launch(30, TimeUnit.SECONDS) {
+                    it.delete().launch()
+                    m.delete().launch()
                     @Suppress("UNCHECKED_CAST")
                     then(selected as R, it, this)
                 }
@@ -209,12 +212,12 @@ class PromptBuilder(val channel: MessageChannel, val target: Member) {
                 color(color)
                 timestamp()
             }
-        }.queue { m ->
+        }.launch { m ->
             eventWaiter.wait<GuildMessageReceivedEvent>({
-                member.user.idLong == target.user.idLong && digit.containsMatchIn(message.contentDisplay)
-            }, timeoutSec?.times(1000L), {
-                m.delete().queue({}, {})
-            }) {
+                                                            member.user.idLong == target.user.idLong && digit.containsMatchIn(message.contentDisplay)
+                                                        }, timeoutSec?.times(1000L), {
+                                                            m.delete().launch()
+                                                        }) {
                 val number = digit.find(message.contentDisplay)!!.value.toInt()
                 val selected = list.getOrElse(number) { default }
 
@@ -233,8 +236,9 @@ class PromptBuilder(val channel: MessageChannel, val target: Member) {
                         }
                         color(color)
                     }
-                }.deleteQueue(30) {
-                    m.delete().queue({}, {})
+                }.launch(30, TimeUnit.SECONDS) {
+                    it.delete().launch()
+                    m.delete().launch()
                     @Suppress("UNCHECKED_CAST")
                     then(selected, it, this)
                 }

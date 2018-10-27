@@ -2,21 +2,22 @@ package jp.nephy.glados.features
 
 import jp.nephy.glados.config
 import jp.nephy.glados.core.builder.Color
-import jp.nephy.glados.core.builder.deleteQueue
 import jp.nephy.glados.core.builder.reply
 import jp.nephy.glados.core.feature.BotFeature
-import jp.nephy.glados.core.feature.subscription.Listener
+import jp.nephy.glados.core.feature.subscription.Event
 import jp.nephy.glados.core.isFalseOrNull
+import jp.nephy.glados.core.launchAndDelete
 import net.dv8tion.jda.core.events.message.guild.GuildMessageReceivedEvent
 import org.jsoup.Jsoup
 import java.net.URL
+import java.util.concurrent.TimeUnit
 
 class NiconicoDict: BotFeature() {
     private val pattern = "^(.+?)(?:#)?とは$".toRegex()
     private val transportPattern = "location.replace\\('(.+?)'\\)".toRegex()
 
-    @Listener
-    override fun onGuildMessageReceived(event: GuildMessageReceivedEvent) {
+    @Event
+    override suspend fun onGuildMessageReceived(event: GuildMessageReceivedEvent) {
         if (config.forGuild(event.guild)?.boolOption("enable_niconico_dict").isFalseOrNull()) {
             return
         }
@@ -81,6 +82,6 @@ class NiconicoDict: BotFeature() {
                     color(Color.Niconico)
                 }
             }
-        }.deleteQueue(60)
+        }.launchAndDelete(2, TimeUnit.MINUTES)
     }
 }

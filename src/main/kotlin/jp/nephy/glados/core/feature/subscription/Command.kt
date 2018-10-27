@@ -2,14 +2,16 @@ package jp.nephy.glados.core.feature.subscription
 
 import jp.nephy.glados.config
 import jp.nephy.glados.core.*
-import jp.nephy.glados.core.audio.music.player
+import jp.nephy.glados.core.audio.player.player
 import jp.nephy.glados.core.builder.Color
-import jp.nephy.glados.core.builder.deleteQueue
 import jp.nephy.glados.core.builder.reply
 import jp.nephy.glados.core.feature.BotFeature
+import jp.nephy.glados.core.feature.CommandError
+import jp.nephy.glados.dispatcher
 import jp.nephy.glados.jda
 import jp.nephy.utils.stackTraceString
-import kotlinx.coroutines.experimental.launch
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import net.dv8tion.jda.core.entities.*
 import net.dv8tion.jda.core.events.Event
 import net.dv8tion.jda.core.events.message.GenericMessageEvent
@@ -17,10 +19,11 @@ import net.dv8tion.jda.core.events.message.MessageReceivedEvent
 import net.dv8tion.jda.core.events.message.MessageUpdateEvent
 import net.dv8tion.jda.core.hooks.ListenerAdapter
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.TimeUnit
 import kotlin.reflect.KFunction
 
 private val logger = Logger("GLaDOS.Command")
-private val spaceRegex = "\\s+".toRegex()
+internal val spaceRegex = "\\s+".toRegex()
 
 data class CommandSubscription(
         override val annotation: Command,
@@ -30,18 +33,10 @@ data class CommandSubscription(
 ): GuildSpecificSubscription<Command> {
 
     private val prefix: String
-        get() = if (annotation.prefix.isNotBlank()) {
-            annotation.prefix
-        } else {
-            config.prefix
-        }
+        get() = annotation.prefix.ifBlank { config.prefix }
 
     val name: String
-        get() = if (annotation.command.isNotBlank()) {
-            annotation.command
-        } else {
-            function.name
-        }
+        get() = annotation.command.ifBlank { function.name }
     private val names: List<String>
         get() = listOf(name) + annotation.aliases
     private val commandSyntaxes: List<String>
@@ -50,11 +45,7 @@ data class CommandSubscription(
         get() = commandSyntaxes.first()
 
     val category: String?
-        get() = if (annotation.category.isNotBlank()) {
-            annotation.category
-        } else {
-            null
-        }
+        get() = annotation.category.ifBlank { null }
 
     fun satisfyTargetGuildRequirement(guild: Guild?): Boolean {
         return targetGuilds.isEmpty() || (guild != null && targetGuilds.any { it.id == guild.idLong })
@@ -66,14 +57,14 @@ data class CommandSubscription(
 
     fun parseArgs(text: String): String? {
         return when (annotation.case) {
-            CommandCasePolicy.Strict -> {
+            Command.CasePolicy.Strict -> {
                 commandSyntaxes.asSequence().filter {
                     text.split(spaceRegex).first() == it
                 }.sortedByDescending { it.length }.map {
                     text.removePrefix(it).trim()
                 }.firstOrNull()
             }
-            CommandCasePolicy.Ignore -> {
+            Command.CasePolicy.Ignore -> {
                 commandSyntaxes.asSequence().filter {
                     text.split(spaceRegex).first().equals(it, true)
                 }.sortedByDescending { it.length }.map {
@@ -92,11 +83,11 @@ data class CommandSubscription(
     }
 
     fun satisfyCommandConditionOfWhileInAnyVoiceChannel(voiceState: GuildVoiceState?): Boolean {
-        return annotation.condition != CommandCondition.WhileInAnyVoiceChannel || voiceState?.inVoiceChannel() == true
+        return annotation.condition != Command.Condition.WhileInAnyVoiceChannel || voiceState?.inVoiceChannel() == true
     }
 
     fun satisfyCommandConditionOfWhileInSameVoiceChannel(member: Member?): Boolean {
-        return annotation.condition != CommandCondition.WhileInSameVoiceChannel || member?.guild?.player?.currentVoiceChannel == member?.voiceState?.channel
+        return annotation.condition != Command.Condition.WhileInSameVoiceChannel || member?.guild?.player?.currentVoiceChannel == member?.voiceState?.channel
     }
 
     fun satisfyCommandPermissionOfAdminOnly(event: Event): Boolean {
@@ -109,7 +100,7 @@ data class CommandSubscription(
             }
             else -> null
         } ?: false
-        return annotation.permission != CommandPermission.AdminOnly || isAdmin
+        return annotation.permission != Command.Permission.AdminOnly || isAdmin
     }
 
     fun satisfyCommandPermissionOfOwnerOnly(event: Event): Boolean {
@@ -122,7 +113,7 @@ data class CommandSubscription(
             }
             else -> null
         } ?: false
-        return annotation.permission != CommandPermission.OwnerOnly || isGLaDOSOwner
+        return annotation.permission != Command.Permission.OwnerOnly || isGLaDOSOwner
     }
 }
 
@@ -132,35 +123,35 @@ annotation class Command(
         val aliases: Array<String> = [],
         val guilds: Array<String> = [],
         val priority: Priority = Priority.Normal,
-        val permission: CommandPermission = CommandPermission.Anyone,
-        val channelType: CommandChannelType = CommandChannelType.Any,
-        val case: CommandCasePolicy = CommandCasePolicy.Strict,
-        val condition: CommandCondition = CommandCondition.Anytime,
+        val permission: Permission = Permission.Anyone,
+        val channelType: ChannelType = ChannelType.Any,
+        val case: CasePolicy = CasePolicy.Strict,
+        val condition: Condition = Condition.Anytime,
         val description: String = "",
         val args: Array<String> = [],
         val checkArgsCount: Boolean = true,
         val prefix: String = "",
         val category: String = ""
-)
+) {
 
-// TODO: nest
-enum class CommandPermission {
+    enum class Permission {
 
-    Anyone, AdminOnly, OwnerOnly
-}
+        Anyone, AdminOnly, OwnerOnly
+    }
 
-enum class CommandChannelType(vararg val correspondings: ChannelType) {
-    Any(ChannelType.TEXT, ChannelType.PRIVATE),
-    TextChannel(ChannelType.TEXT),
-    PrivateMessage(ChannelType.PRIVATE)
-}
+    enum class ChannelType(vararg val correspondings: net.dv8tion.jda.core.entities.ChannelType) {
+        Any(net.dv8tion.jda.core.entities.ChannelType.TEXT, net.dv8tion.jda.core.entities.ChannelType.PRIVATE),
+        TextChannel(net.dv8tion.jda.core.entities.ChannelType.TEXT),
+        PrivateMessage(net.dv8tion.jda.core.entities.ChannelType.PRIVATE)
+    }
 
-enum class CommandCasePolicy {
-    Strict, Ignore
-}
+    enum class CasePolicy {
+        Strict, Ignore
+    }
 
-enum class CommandCondition {
-    Anytime, WhileInAnyVoiceChannel, WhileInSameVoiceChannel
+    enum class Condition {
+        Anytime, WhileInAnyVoiceChannel, WhileInSameVoiceChannel
+    }
 }
 
 class CommandSubscriptionClient: SubscriptionClient<Command>, ListenerAdapter() {
@@ -175,7 +166,7 @@ class CommandSubscriptionClient: SubscriptionClient<Command>, ListenerAdapter() 
             return
         }
 
-        launch {
+        GlobalScope.launch(dispatcher) {
             handleMessage(event, event.message, event.channelType)
         }
     }
@@ -185,7 +176,7 @@ class CommandSubscriptionClient: SubscriptionClient<Command>, ListenerAdapter() 
             return
         }
 
-        launch {
+        GlobalScope.launch(dispatcher) {
             handleMessage(event, event.message, event.channelType)
         }
     }
@@ -218,7 +209,8 @@ class CommandSubscriptionClient: SubscriptionClient<Command>, ListenerAdapter() 
                             color(Color.Bad)
                             timestamp()
                         }
-                    }.deleteQueue(30)
+                    }.launchAndDelete(30, TimeUnit.SECONDS)
+
                     logger.warn { "\"$text\": サーバ ${event.guild.name} ではコマンド機能が無効なので実行されませんでした. (${commandEvent.authorName})" }
                 }
                 !subscription.satisfyArgumentsRequirement(commandEvent.argList) -> {
@@ -232,7 +224,8 @@ class CommandSubscriptionClient: SubscriptionClient<Command>, ListenerAdapter() 
                             color(Color.Bad)
                             timestamp()
                         }
-                    }.deleteQueue(30)
+                    }.launchAndDelete(30, TimeUnit.SECONDS)
+
                     logger.warn { "\"$text\": コマンドの引数が足りません. (${commandEvent.authorName})" }
                 }
                 !subscription.satisfyCommandConditionOfWhileInAnyVoiceChannel(message.member?.voiceState) -> {
@@ -243,7 +236,8 @@ class CommandSubscriptionClient: SubscriptionClient<Command>, ListenerAdapter() 
                             color(Color.Bad)
                             timestamp()
                         }
-                    }.deleteQueue(30)
+                    }.launchAndDelete(30, TimeUnit.SECONDS)
+
                     logger.warn { "\"$text\": コマンド実行の要件(WhileInAnyVoiceChannel)が足りません. (${commandEvent.authorName})" }
                 }
                 !subscription.satisfyCommandConditionOfWhileInSameVoiceChannel(message.member) -> {
@@ -254,7 +248,8 @@ class CommandSubscriptionClient: SubscriptionClient<Command>, ListenerAdapter() 
                             color(Color.Bad)
                             timestamp()
                         }
-                    }.deleteQueue(30)
+                    }.launchAndDelete(30, TimeUnit.SECONDS)
+
                     logger.warn { "\"$text\": コマンド実行の要件(WhileInSameVoiceChannel)が足りません. (${commandEvent.authorName})" }
                 }
                 !subscription.satisfyCommandPermissionOfAdminOnly(event) -> {
@@ -266,7 +261,8 @@ class CommandSubscriptionClient: SubscriptionClient<Command>, ListenerAdapter() 
                                 color(Color.Bad)
                                 timestamp()
                             }
-                        }.deleteQueue(30)
+                        }.launchAndDelete(30, TimeUnit.SECONDS)
+
                         logger.warn { "\"$text\": 管理者ロールがないため実行されませんでした. (${commandEvent.authorName})" }
                     } else {
                         commandEvent.reply {
@@ -276,7 +272,8 @@ class CommandSubscriptionClient: SubscriptionClient<Command>, ListenerAdapter() 
                                 color(Color.Bad)
                                 timestamp()
                             }
-                        }.deleteQueue(30)
+                        }.launchAndDelete(30, TimeUnit.SECONDS)
+
                         logger.warn { "\"$text\": 管理者ロールがないため(DM)実行されませんでした. (${commandEvent.authorName})" }
                     }
                 }
@@ -288,7 +285,8 @@ class CommandSubscriptionClient: SubscriptionClient<Command>, ListenerAdapter() 
                             color(Color.Bad)
                             timestamp()
                         }
-                    }.deleteQueue(30)
+                    }.launchAndDelete(30, TimeUnit.SECONDS)
+
                     logger.warn { "\"$text\": オーナーではないため実行されませんでした. (${commandEvent.authorName})" }
                 }
                 else -> {
@@ -296,19 +294,24 @@ class CommandSubscriptionClient: SubscriptionClient<Command>, ListenerAdapter() 
                         subscription.invoke(commandEvent)
                         logger.trace { "${subscription.instance.javaClass.simpleName}#${subscription.function.name} が実行されました. (${commandEvent.authorName})" }
                     } catch (e: Exception) {
-                        val exception = e.invocationException
-
-                        commandEvent.reply {
-                            embed {
-                                title("`$text` の実行中に例外が発生しました。")
-                                description { "ご不便をお掛けしています。この問題が何度も発生する場合は開発者にご連絡ください。" }
-                                field("スタックトレース") { "${exception.stackTraceString.take(300)}..." }
-                                color(Color.Bad)
-                                timestamp()
+                        when (val exception = e.invocationException) {
+                            is CommandError -> {
+                                logger.error(exception) { "コマンドエラーが発生しました。" }
                             }
-                        }.deleteQueue(30)
+                            else -> {
+                                commandEvent.reply {
+                                    embed {
+                                        title("`$text` の実行中に例外が発生しました。")
+                                        description { "ご不便をお掛けしています。この問題が何度も発生する場合は開発者にご連絡ください。" }
+                                        field("スタックトレース") { "${exception.stackTraceString.take(300)}..." }
+                                        color(Color.Bad)
+                                        timestamp()
+                                    }
+                                }.launchAndDelete(30, TimeUnit.SECONDS)
 
-                        logger.error(exception) { "\"$text\" の実行中に例外が発生しました." }
+                                logger.error(exception) { "\"$text\" の実行中に例外が発生しました。" }
+                            }
+                        }
                     }
                 }
             }
@@ -316,9 +319,9 @@ class CommandSubscriptionClient: SubscriptionClient<Command>, ListenerAdapter() 
     }
 }
 
-class CommandEvent private constructor(val args: String, val message: Message, val user: User, val member: Member?, val guild: Guild?, val textChannel: TextChannel?, val privateChannel: PrivateChannel?, val channel: MessageChannel): Event(jda, jda.responseTotal) {
-    constructor(args: String, event: MessageReceivedEvent): this(args, event.message, event.author, event.member, event.guild, event.textChannel, event.privateChannel, event.channel)
-    constructor(args: String, event: MessageUpdateEvent): this(args, event.message, event.author, event.member, event.guild, event.textChannel, event.privateChannel, event.channel)
+class CommandEvent private constructor(val args: String, val message: Message, val user: User, val member: Member?, val guild: Guild?, val textChannel: TextChannel?, val channel: MessageChannel): Event(jda, jda.responseTotal) {
+    constructor(args: String, event: MessageReceivedEvent): this(args, event.message, event.author, event.member, event.guild, event.textChannel, event.channel)
+    constructor(args: String, event: MessageUpdateEvent): this(args, event.message, event.author, event.member, event.guild, event.textChannel, event.channel)
 
     val argList: List<String>
         get() = if (args.isNotBlank()) {

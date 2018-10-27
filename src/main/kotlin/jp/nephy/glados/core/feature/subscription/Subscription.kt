@@ -2,8 +2,9 @@ package jp.nephy.glados.core.feature.subscription
 
 import jp.nephy.glados.core.GLaDOSConfig
 import jp.nephy.glados.core.feature.BotFeature
-import kotlin.coroutines.experimental.suspendCoroutine
+import net.dv8tion.jda.core.entities.Guild
 import kotlin.reflect.KFunction
+import kotlin.reflect.full.callSuspend
 
 interface Subscription<T: Annotation> {
     val annotation: T
@@ -12,14 +13,7 @@ interface Subscription<T: Annotation> {
 
     suspend operator fun invoke(vararg args: Any?) {
         if (function.isSuspend) {
-            suspendCoroutine<Any?> {
-                try {
-                    val result = function.call(instance, *args, it)
-                    it.resume(result)
-                } catch (e: Exception) {
-                    it.resumeWithException(e)
-                }
-            }
+            function.callSuspend(instance, *args)
         } else {
             function.call(instance, *args)
         }
@@ -28,6 +22,10 @@ interface Subscription<T: Annotation> {
 
 interface GuildSpecificSubscription<T: Annotation>: Subscription<T> {
     val targetGuilds: List<GLaDOSConfig.GuildConfig>
+
+    fun matches(guild: Guild): Boolean {
+        return targetGuilds.isEmpty() || targetGuilds.any { it.id == guild.idLong }
+    }
 }
 
 enum class Priority {

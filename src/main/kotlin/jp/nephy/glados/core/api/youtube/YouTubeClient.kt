@@ -8,14 +8,12 @@ import com.google.api.services.youtube.model.SearchResult
 
 
 class YouTubeClient(private val apiKey: String) {
-    private val httpTransport = NetHttpTransport()
-    private val jsonFactory = JacksonFactory()
-    private val youtube = YouTube.Builder(httpTransport, jsonFactory, HttpRequestInitializer { })
+    private val api = YouTube.Builder(NetHttpTransport(), JacksonFactory(), HttpRequestInitializer { })
             .setApplicationName("GLaDOS")
             .build()
 
     fun search(query: String, limit: Int = 10): List<SearchResult> {
-        val result = youtube.search().list("id,snippet").apply {
+        val result = api.search().list("id,snippet").apply {
             key = apiKey
             q = query
             type = "video"
@@ -23,6 +21,6 @@ class YouTubeClient(private val apiKey: String) {
             maxResults = limit.toLong()
         }.execute()
 
-        return result.items ?: return emptyList()
+        return result.items.orEmpty()
     }
 }

@@ -6,6 +6,7 @@ import net.dv8tion.jda.core.events.Event
 
 const val adminRoleKey = "admin"
 
+// TODO
 val Event.nullableGuild
     get() = try {
         javaClass.getMethod("getGuild").invoke(this) as? Guild
@@ -62,12 +63,12 @@ fun Member.isGLaDOSOwner(): Boolean {
 
 fun Member.addRole(role: Role) {
     if (!hasRole(role)) {
-        guild.controller.addSingleRoleToMember(this, role).queue()
+        guild.controller.addSingleRoleToMember(this, role).launch()
     }
 }
 
 fun Member.removeRole(role: Role) {
     if (hasRole(role)) {
-        guild.controller.removeSingleRoleFromMember(this, role).queue()
+        guild.controller.removeSingleRoleFromMember(this, role).launch()
     }
 }

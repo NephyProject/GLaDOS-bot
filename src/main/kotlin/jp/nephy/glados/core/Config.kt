@@ -1,9 +1,8 @@
 package jp.nephy.glados.core
 
-import com.google.gson.JsonElement
-import com.google.gson.JsonObject
 import jp.nephy.glados.jda
 import jp.nephy.jsonkt.*
+import jp.nephy.jsonkt.delegation.*
 import net.dv8tion.jda.core.entities.Guild
 import net.dv8tion.jda.core.entities.Role
 import net.dv8tion.jda.core.entities.TextChannel
@@ -14,41 +13,46 @@ import java.nio.file.Paths
 val productionConfigPath = Paths.get("config.prod.json")!!
 val developmentConfigPath = Paths.get("config.dev.json")!!
 val secretConfigPath = Paths.get("config.secret.json")!!
+val sqliteDatabasePath = Paths.get("glados.db")!!
 
 fun Boolean?.isFalseOrNull(): Boolean {
     return this != true
 }
 
-class GLaDOSConfig private constructor(override val json: JsonObject): JsonModel {
+data class GLaDOSConfig(override val json: ImmutableJsonObject): JsonModel {
     companion object {
         fun load(path: Path): GLaDOSConfig {
-            return GLaDOSConfig(path.toJsonObject())
+            return path.parse()
         }
     }
 
-    val token by json.byString
-    val ownerId by json.byNullableLong("owner_id")
-    val prefix by json.byString { "!" }
-    val parallelism by json.byNullableInt
-    val wuiHost by json.byString("wui_host") { "127.0.0.1" }
-    val wuiPort by json.byInt("wui_port") { 8080 }
-    val guilds by json.byLambda { jsonObject.map { it.key to GuildConfig(it.value.jsonObject) }.toMap() }
+    val token by string
+    val clientId by string("client_id")
+    val clientSecret by string("client_secret")
+    val redirectUri by string("redirect_uri")
+    val ownerId by nullableLong("owner_id")
+    val prefix by string { "!" }
+    val parallelism by int { minOf(Runtime.getRuntime().availableProcessors() / 2, 1) }
+    val wuiHost by string("wui_host") { "127.0.0.1" }
+    val wuiPort by int("wui_port") { 8080 }
+    val guilds by lambda { it.immutableJsonObject.map { guild -> guild.key to guild.value.immutableJsonObject.parse<GuildConfig>() }.toMap() }
 
     fun forGuild(guild: Guild?): GuildConfig? {
         if (guild == null) {
             return null
         }
+
         return guilds.values.find { it.id == guild.idLong }
     }
 
-    class GuildConfig(override val json: JsonObject): JsonModel {
-        val id by json.byLong
-        val isMain by json.byBool("is_main") { false }
+    data class GuildConfig(override val json: ImmutableJsonObject): JsonModel {
+        val id by long
+        val isMain by boolean("is_main") { false }
 
-        private val textChannels by json.byJsonObject("text_channels") { jsonObject() }
-        private val voiceChannels by json.byJsonObject("voice_channels") { jsonObject() }
-        private val roles by json.byJsonObject { jsonObject() }
-        private val options by json.byJsonObject { jsonObject() }
+        private val textChannels by immutableJsonObject("text_channels") { immutableJsonObjectOf() }
+        private val voiceChannels by immutableJsonObject("voice_channels") { immutableJsonObjectOf() }
+        private val roles by immutableJsonObject { immutableJsonObjectOf() }
+        private val options by immutableJsonObject { immutableJsonObjectOf() }
 
         fun textChannel(key: String): TextChannel? {
             return jda.getTextChannelById(textChannels.getOrNull(key)?.nullableLong ?: return null)
@@ -81,10 +85,22 @@ class GLaDOSConfig private constructor(override val json: JsonObject): JsonModel
         fun boolOption(key: String): Boolean? {
             return option(key) { it.nullableBool }
         }
+
+        inline fun <T> withTextChannel(key: String, operation: (TextChannel) -> T?): T? {
+            return operation(textChannel(key) ?: return null)
+        }
+
+        inline fun <T> withVoiceChannel(key: String, operation: (VoiceChannel) -> T?): T? {
+            return operation(voiceChannel(key) ?: return null)
+        }
+
+        inline fun <T> withRole(key: String, operation: (Role) -> T?): T? {
+            return operation(role(key) ?: return null)
+        }
     }
 }
 
-class SecretConfig private constructor(override val json: JsonObject): JsonModel {
+class SecretConfig private constructor(override val json: ImmutableJsonObject): JsonModel {
     companion object {
         fun load(path: Path): SecretConfig {
             return SecretConfig(path.toJsonObject())
@@ -105,11 +121,11 @@ class SecretConfig private constructor(override val json: JsonObject): JsonModel
 
     @Suppress("IMPLICIT_CAST_TO_ANY")
     inline fun <reified T> forKeySafe(key: String, default: T? = null): T? {
-        val value = json.getOrNull(key)
+        val value = json.getOrNull(key) ?: return null
 
         return when (T::class) {
             Boolean::class -> {
-                value.toBoolOrNull()
+                value.toBooleanOrNull()
             }
             Byte::class -> {
                 value.toByteOrNull()
@@ -133,7 +149,7 @@ class SecretConfig private constructor(override val json: JsonObject): JsonModel
                 value.toDoubleOrNull()
             }
             String::class -> {
-                value.toStringOrNull()
+                value.toStringValueOrNull()
             }
             else -> null
         } as T? ?: default

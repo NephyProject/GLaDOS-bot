@@ -1,4 +1,9 @@
 
+/*
+    TODO:
+        Giveaway
+ */
 
-fun main(args: Array<String>) {
+fun main() {
+    jp.nephy.glados.main(arrayOf("--debug"))
 }

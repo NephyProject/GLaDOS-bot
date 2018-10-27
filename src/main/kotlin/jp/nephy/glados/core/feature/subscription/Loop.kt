@@ -3,9 +3,8 @@ package jp.nephy.glados.core.feature.subscription
 import jp.nephy.glados.core.Logger
 import jp.nephy.glados.core.feature.BotFeature
 import jp.nephy.glados.core.invocationException
-import kotlinx.coroutines.experimental.CancellationException
-import kotlinx.coroutines.experimental.delay
-import kotlinx.coroutines.experimental.launch
+import jp.nephy.glados.dispatcher
+import kotlinx.coroutines.*
 import net.dv8tion.jda.core.events.ReadyEvent
 import net.dv8tion.jda.core.hooks.ListenerAdapter
 import java.util.concurrent.CopyOnWriteArrayList
@@ -35,19 +34,19 @@ class LoopSubscriptionClient: SubscriptionClient<Loop>, ListenerAdapter() {
 
     override fun onReady(event: ReadyEvent) {
         for (it in subscriptions) {
-            launch {
+            GlobalScope.launch(dispatcher) {
                 while (isActive) {
                     try {
                         it.invoke()
-                        logger.trace { "${it.instance.javaClass.simpleName}#${it.function.name} が実行されました." }
+                        logger.trace { "${it.instance.javaClass.simpleName}#${it.function.name} が実行されました。" }
                     } catch (e: CancellationException) {
                         break
                     } catch (e: Exception) {
-                        logger.error(e.invocationException) { "[${it.instance.javaClass.simpleName}#${it.function.name}] 実行中に例外が発生しました." }
+                        logger.error(e.invocationException) { "[${it.instance.javaClass.simpleName}#${it.function.name}] 実行中に例外が発生しました。" }
                     }
 
                     try {
-                        delay(it.annotation.interval, it.annotation.unit)
+                        delay(it.annotation.unit.toMillis(it.annotation.interval))
                     } catch (e: CancellationException) {
                         break
                     }
