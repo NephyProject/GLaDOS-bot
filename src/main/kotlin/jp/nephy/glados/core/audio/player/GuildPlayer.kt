@@ -15,10 +15,8 @@ import jp.nephy.glados.core.api.youtube.YouTubeClient
 import jp.nephy.glados.core.audio.AudioReceiveHandlerImpl
 import jp.nephy.glados.core.audio.AudioSendHandlerImpl
 import jp.nephy.glados.core.audio.SilenceAudioSendHandler
-import jp.nephy.glados.core.feature.subscription.AudioEventSubscriptionClient
-import jp.nephy.glados.core.feature.subscription.ConnectionListenerSubscriptionClient
-import jp.nephy.glados.core.toMilliSecondString
-import jp.nephy.glados.featureManager
+import jp.nephy.glados.core.extensions.toMilliSecondString
+import jp.nephy.glados.core.plugins.SubscriptionClient
 import jp.nephy.glados.secret
 import jp.nephy.utils.sumBy
 import net.dv8tion.jda.core.entities.Guild
@@ -28,6 +26,7 @@ import java.util.concurrent.ConcurrentHashMap
 private val logger = Logger("GLaDOS.Audio.GuildPlayer")
 
 private val players = ConcurrentHashMap<Guild, GuildPlayer>()
+// TODO
 val Guild.player: GuildPlayer?
     get() = synchronized(players) {
         players.getOrPut(this) {
@@ -36,15 +35,14 @@ val Guild.player: GuildPlayer?
 
             GuildPlayer(this, guildConfig, defaultVoiceChannel).also {
                 audioManager.isAutoReconnect = true
-                audioManager.connectionListener = featureManager.bindTo(ConnectionListenerSubscriptionClient(this))
+                audioManager.connectionListener = SubscriptionClient.ConnectionEvent.create(this)
                 audioManager.sendingHandler = SilenceAudioSendHandler {
                     // Hotfix: https://github.com/DV8FromTheWorld/JDA/issues/789
                     audioManager.sendingHandler = AudioSendHandlerImpl(it.audioPlayer)
                     audioManager.setReceivingHandler(AudioReceiveHandlerImpl(it))
+                    it.audioPlayer.addListener(SubscriptionClient.AudioEvent.create(it))
                     logger.info { "[${defaultVoiceChannel.name} ($name)] 無音の送信が終了しました。" }
                 }
-
-                it.audioPlayer.addListener(featureManager.bindTo(AudioEventSubscriptionClient(it)))
             }
         }
     }

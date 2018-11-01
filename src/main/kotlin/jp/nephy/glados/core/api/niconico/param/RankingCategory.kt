@@ -1,6 +1,6 @@
 package jp.nephy.glados.core.api.niconico.param
 
-import jp.nephy.glados.core.builder.prompt.PromptEnum
+import jp.nephy.glados.core.extensions.messages.prompt.PromptEnum
 
 enum class RankingCategory(override val friendlyName: String, private val apiName: String? = null, val isUnited: Boolean = false): PromptEnum {
     All("カテゴリ合算", isUnited = true),

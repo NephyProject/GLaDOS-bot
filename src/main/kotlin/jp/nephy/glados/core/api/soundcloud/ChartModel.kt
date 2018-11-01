@@ -3,7 +3,7 @@ package jp.nephy.glados.core.api.soundcloud
 import jp.nephy.jsonkt.ImmutableJsonObject
 import jp.nephy.jsonkt.delegation.*
 
-
+@Suppress("UNUSED")
 data class ChartModel(override val json: ImmutableJsonObject): JsonModel {
     val collection by modelList<Collection>()  // [...]
     val genre by string  // "soundcloud:genres:all-music"

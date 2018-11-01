@@ -6,7 +6,7 @@
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <withJansi>true</withJansi>
         <encoder>
-            <pattern>[%highlight(%-5level)] [%d{HH:mm:ss.SSS}] [%green(%logger) / %thread] %m%n</pattern>
+            <pattern>[%highlight(%-5level)] [%d{HH:mm:ss.SSS}] [%green(%logger)] %m%n</pattern>
         </encoder>
     </appender>
     <appender name="INFO_FILE" class="ch.qos.logback.core.FileAppender">
@@ -33,7 +33,8 @@
     </appender>
 
     <logger name="GLaDOS" level="DEBUG" />
-    <logger name="Feature" level="DEBUG" />
+    <logger name="Plugin" level="DEBUG" />
+    <logger name="Subscription" level="DEBUG" />
     <logger name="net.dv8tion.jda" level="ERROR" />
 
     <root level="INFO">

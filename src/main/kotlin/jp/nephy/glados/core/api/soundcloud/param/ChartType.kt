@@ -1,6 +1,6 @@
 package jp.nephy.glados.core.api.soundcloud.param
 
-import jp.nephy.glados.core.builder.prompt.PromptEmoji
+import jp.nephy.glados.core.extensions.messages.prompt.PromptEmoji
 
 enum class ChartType(override val emoji: String): PromptEmoji {
     Top("🌟"), Trending("🔥");

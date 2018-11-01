@@ -1,28 +1,26 @@
 package jp.nephy.glados.core
 
 import jp.nephy.glados.isDebugMode
-import jp.nephy.glados.secret
 import jp.nephy.utils.stackTraceString
 import mu.KotlinLogging
 import org.slf4j.event.Level
 import java.util.logging.LogManager
 
 class Logger(private val name: String, private val useSlack: Boolean = true) {
-    private val slack = SlackWebhook(secret.forKey("slack_webhook_url"))
     private val logger = KotlinLogging.logger(name)
 
     init {
         LogManager.getLogManager().reset()
     }
 
-    private fun (() -> Any).toStringSafe() = try {
+    private fun (() -> Any).toStringSafe() = runCatching {
         invoke().toString()
-    } catch (e: Exception) {
-        ""
-    }
+    }.getOrDefault("")
+
+    val isTraceEnabled = logger.isTraceEnabled
 
     fun trace(msg: () -> Any) {
-        if (logger.isTraceEnabled) {
+        if (isTraceEnabled) {
             logger.trace(msg)
         }
     }
@@ -88,7 +86,7 @@ class Logger(private val name: String, private val useSlack: Boolean = true) {
             return
         }
 
-        slack.message("#glados") {
+        jp.nephy.glados.slack.message("#glados") {
             username("[${level.name}] $name")
             icon(":desktop_computer:")
             text(message)

@@ -5,7 +5,7 @@ import com.sedmelluq.discord.lavaplayer.player.event.AudioEventAdapter
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack
 import com.sedmelluq.discord.lavaplayer.track.AudioTrackEndReason
 import jp.nephy.glados.core.Logger
-import jp.nephy.glados.core.isNoOneExceptSelf
+import jp.nephy.glados.core.extensions.isNoOneExceptSelf
 import jp.nephy.glados.dispatcher
 import jp.nephy.utils.removeAtOrNull
 import jp.nephy.utils.sumBy
@@ -25,7 +25,7 @@ class TrackControls(private val guildPlayer: GuildPlayer, private val player: Au
         add(track, justLoad = false)
     }
 
-    fun add(track: AudioTrack, justLoad: Boolean = false) {
+    private fun add(track: AudioTrack, justLoad: Boolean = false) {
         // ユーザリクエスト楽曲を優先して再生
         if (currentTrack?.data?.type != TrackType.UserRequest && track.data.type == TrackType.UserRequest) {
             return replace(track)

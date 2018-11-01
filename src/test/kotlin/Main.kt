@@ -1,9 +1,11 @@
+import kotlinx.coroutines.ObsoleteCoroutinesApi
 
 /*
     TODO:
         Giveaway
  */
 
-fun main() {
+@UseExperimental(ObsoleteCoroutinesApi::class)
+suspend fun main() {
     jp.nephy.glados.main(arrayOf("--debug"))
 }

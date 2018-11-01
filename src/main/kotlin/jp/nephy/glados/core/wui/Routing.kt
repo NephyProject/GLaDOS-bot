@@ -10,7 +10,6 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.OutgoingContent
 import io.ktor.http.encodeURLParameter
 import io.ktor.http.userAgent
-import io.ktor.pipeline.PipelineContext
 import io.ktor.request.httpMethod
 import io.ktor.request.path
 import io.ktor.response.respond
@@ -22,11 +21,11 @@ import io.ktor.sessions.clear
 import io.ktor.sessions.get
 import io.ktor.sessions.sessions
 import io.ktor.sessions.set
+import io.ktor.util.pipeline.PipelineContext
 import jp.nephy.glados.config
-import jp.nephy.glados.core.SlackWebhook
-import jp.nephy.glados.features.player.SoundBot
 import jp.nephy.glados.httpClient
-import jp.nephy.glados.secret
+import jp.nephy.glados.plugins.player.SoundBot
+import jp.nephy.glados.slack
 import jp.nephy.glados.userAgent
 import jp.nephy.jsonkt.ImmutableJsonObject
 import jp.nephy.jsonkt.delegation.JsonModel
@@ -38,11 +37,7 @@ import kotlinx.coroutines.io.writeStringUtf8
 import kotlinx.html.*
 import java.nio.file.Files
 import java.nio.file.Paths
-import kotlin.collections.first
-import kotlin.collections.forEach
 import kotlin.collections.set
-
-private val slack = SlackWebhook(secret.forKey("slack_webhook_url"))
 
 fun Route.getTop() {
     get("/") {

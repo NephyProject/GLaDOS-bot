@@ -1,12 +1,11 @@
 package jp.nephy.glados.core
 
-import io.ktor.client.HttpClient
-import io.ktor.client.engine.apache.Apache
 import io.ktor.client.request.post
 import io.ktor.client.response.HttpResponse
 import io.ktor.http.ContentType
 import io.ktor.http.content.OutgoingContent
 import jp.nephy.glados.dispatcher
+import jp.nephy.glados.httpClient
 import jp.nephy.jsonkt.mutableJsonObjectOf
 import jp.nephy.jsonkt.toJsonString
 import kotlinx.coroutines.*
@@ -18,7 +17,6 @@ import java.util.concurrent.TimeUnit
 
 class SlackWebhook(private val url: String, private val retryInterval: Long = 3, private val retryIntervalUnit: TimeUnit = TimeUnit.SECONDS, private val maxRetries: Int = 3): Closeable {
     private val logger = KotlinLogging.logger("SlackWebhook")
-    private val httpClient = HttpClient(Apache)
     private val masterJob = Job()
 
     fun message(channel: String? = null, builder: MessageBuilder.() -> Unit): Job {

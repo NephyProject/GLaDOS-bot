@@ -1,20 +1,18 @@
 package jp.nephy.glados.core.audio.speech
 
-import io.ktor.client.HttpClient
-import io.ktor.client.engine.apache.Apache
 import io.ktor.client.request.accept
 import io.ktor.client.request.post
 import io.ktor.client.response.HttpResponse
 import io.ktor.client.response.readBytes
 import io.ktor.http.ContentType
 import io.ktor.http.content.OutgoingContent
+import jp.nephy.glados.httpClient
 import jp.nephy.glados.secret
 import kotlinx.coroutines.io.ByteWriteChannel
 import kotlinx.coroutines.io.writeStringUtf8
 
 class Maki {
     private val apiKey = secret.forKey<String>("docomo_api_key")
-    private val httpClient = HttpClient(Apache)
 
     suspend fun speak(text: () -> String) {
         val response = httpClient.post<HttpResponse>("https://api.apigw.smt.docomo.ne.jp/aiTalk/v1/textToSpeech?APIKEY=$apiKey") {

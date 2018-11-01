@@ -1,3 +1,9 @@
+.idea/
+.gradle/
+gradle/
+build/
+out/
+
 config.prod.json
 config.dev.json
 config.secret.json

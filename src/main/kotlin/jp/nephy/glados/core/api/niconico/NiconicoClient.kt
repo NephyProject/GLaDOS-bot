@@ -3,12 +3,9 @@ package jp.nephy.glados.core.api.niconico
 import com.rometools.rome.io.SyndFeedInput
 import com.rometools.rome.io.XmlReader
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack
-import io.ktor.client.HttpClient
-import io.ktor.client.engine.apache.Apache
 import io.ktor.client.request.get
-import io.ktor.client.request.header
-import io.ktor.http.HttpHeaders
 import io.ktor.http.encodeURLParameter
+import io.ktor.http.userAgent
 import jp.nephy.glados.core.api.niconico.model.Ranking
 import jp.nephy.glados.core.api.niconico.model.SearchResult
 import jp.nephy.glados.core.api.niconico.param.RankingCategory
@@ -16,6 +13,7 @@ import jp.nephy.glados.core.api.niconico.param.RankingPeriod
 import jp.nephy.glados.core.api.niconico.param.RankingType
 import jp.nephy.glados.core.api.niconico.param.SearchTarget
 import jp.nephy.glados.core.audio.player.*
+import jp.nephy.glados.httpClient
 import jp.nephy.glados.userAgent
 import jp.nephy.jsonkt.delegation.JsonModel
 import jp.nephy.jsonkt.parse
@@ -23,11 +21,9 @@ import java.net.URL
 import java.util.*
 
 class NiconicoClient {
-    private val httpClient = HttpClient(Apache)
-
     private suspend inline fun <reified T: JsonModel> get(url: String): T {
         return httpClient.get<String>(url) {
-            header(HttpHeaders.UserAgent, userAgent)
+            userAgent(userAgent)
         }.parse()
     }
 

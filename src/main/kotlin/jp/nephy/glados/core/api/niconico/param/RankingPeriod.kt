@@ -1,6 +1,6 @@
 package jp.nephy.glados.core.api.niconico.param
 
-import jp.nephy.glados.core.builder.prompt.PromptEmoji
+import jp.nephy.glados.core.extensions.messages.prompt.PromptEmoji
 
 enum class RankingPeriod(override val emoji: String, override val friendlyName: String): PromptEmoji {
     Hourly("🕒", "毎時"),

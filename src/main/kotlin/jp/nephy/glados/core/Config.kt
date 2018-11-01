@@ -13,7 +13,6 @@ import java.nio.file.Paths
 val productionConfigPath = Paths.get("config.prod.json")!!
 val developmentConfigPath = Paths.get("config.dev.json")!!
 val secretConfigPath = Paths.get("config.secret.json")!!
-val sqliteDatabasePath = Paths.get("glados.db")!!
 
 fun Boolean?.isFalseOrNull(): Boolean {
     return this != true

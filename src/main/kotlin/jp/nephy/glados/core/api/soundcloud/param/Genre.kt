@@ -1,6 +1,6 @@
 package jp.nephy.glados.core.api.soundcloud.param
 
-import jp.nephy.glados.core.builder.prompt.PromptEnum
+import jp.nephy.glados.core.extensions.messages.prompt.PromptEnum
 
 enum class Genre(private val altName: String? = null, private val altInternalName: String? = null): PromptEnum {
     AllMusic("All Music", "all-music"), AllAudio("All Audio", "all-audio"),

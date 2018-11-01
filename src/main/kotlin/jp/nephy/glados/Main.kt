@@ -9,7 +9,8 @@ import io.ktor.client.engine.apache.Apache
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import jp.nephy.glados.core.*
-import jp.nephy.glados.core.feature.FeatureManager
+import jp.nephy.glados.core.plugins.PluginManager
+import jp.nephy.glados.core.plugins.SubscriptionClient
 import jp.nephy.glados.core.wui.module
 import jp.nephy.jsonkt.mongodb
 import jp.nephy.utils.linkedCacheDir
@@ -20,6 +21,7 @@ import net.dv8tion.jda.core.AccountType
 import net.dv8tion.jda.core.JDA
 import net.dv8tion.jda.core.JDABuilder
 import net.dv8tion.jda.core.entities.Game
+import net.dv8tion.jda.core.hooks.AnnotatedEventManager
 import java.nio.file.Paths
 
 var isDebugMode = false
@@ -30,26 +32,25 @@ lateinit var config: GLaDOSConfig
     private set
 lateinit var dispatcher: ExecutorCoroutineDispatcher
     private set
-lateinit var mongodb: MongoDatabase
-    private set
 lateinit var httpClient: HttpClient
     private set
-lateinit var eventWaiter: EventWaiter
+lateinit var slack: SlackWebhook
     private set
-lateinit var featureManager: FeatureManager
+lateinit var mongodb: MongoDatabase
+    private set
+lateinit var eventWaiter: EventWaiter
     private set
 lateinit var jda: JDA
     private set
 
 const val userAgent = "GLaDOS-bot (+https://github.com/SlashNephy/GLaDOS-bot)"
 
-@ObsoleteCoroutinesApi
-fun main(args: Array<String>) {
+@UseExperimental(ObsoleteCoroutinesApi::class)
+suspend fun main(args: Array<String>) {
     isDebugMode = args.contains("--debug")
     linkedCacheDir = Paths.get("cache")
 
     secret = SecretConfig.load(secretConfigPath)
-
     config = if (isDebugMode) {
         GLaDOSConfig.load(developmentConfigPath)
     } else {
@@ -57,8 +58,15 @@ fun main(args: Array<String>) {
     }
 
     dispatcher = newFixedThreadPoolContext(config.parallelism, "GLaDOS-Worker")
+    httpClient = HttpClient(Apache)
+    slack = SlackWebhook(secret.forKey("slack_webhook_url"))
 
     val logger = Logger("GLaDOS")
+    if (isDebugMode) {
+        logger.info { "デバックモードで起動しています。" }
+    } else {
+        logger.info { "プロダクションモードで起動しています。" }
+    }
     if (config.guilds.isEmpty()) {
         logger.error { "GLaDOSのサーバ設定が空です。" }
         return
@@ -70,29 +78,22 @@ fun main(args: Array<String>) {
 
     mongodb = mongodb(secret.forKey("mongodb_host")).getDatabase("bot")
 
-    httpClient = HttpClient(Apache)
-
     eventWaiter = EventWaiter()
-
     jda = JDABuilder(AccountType.BOT).apply {
         setToken(config.token)
-        setAudioSendFactory(NativeAudioSendFactory(1500))
         setGame(Game.playing("Booting..."))
+        setEnableShutdownHook(false)
+        setAudioSendFactory(NativeAudioSendFactory(1500))
 
         addEventListener(eventWaiter)
 
-        featureManager = FeatureManager("jp.nephy.glados.features")
-        featureManager.loadAll()
-        addEventListener(featureManager.commandClient)
-        addEventListener(featureManager.listenerEventClient)
-        addEventListener(featureManager.loopClient)
+        PluginManager.loadAll()
+        setEventManager(AnnotatedEventManager())
+        addEventListener(SubscriptionClient.Command)
+        addEventListener(SubscriptionClient.ListenerEvent)
+        addEventListener(SubscriptionClient.Loop)
+        addEventListener(SubscriptionClient.Schedule)
     }.build()
-
-    if (isDebugMode) {
-        logger.info { "デバックモードで起動完了。" }
-    } else {
-        logger.info { "プロダクションモードで起動完了。" }
-    }
 
     embeddedServer(Netty, host = config.wuiHost, port = config.wuiPort, module = Application::module).start(wait = true)
 }
