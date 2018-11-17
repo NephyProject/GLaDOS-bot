@@ -9,10 +9,7 @@ config.dev.json
 config.secret.json
 
 logs/
-tmp/
 tmp_debug/
-cache/
-sounds/
-
-src/main/kotlin/jp/nephy/glados/features/internal/Audit.kt
-src/main/kotlin/jp/nephy/glados/core/audio/AudioReceiveHandlerImpl.kt
+plugins/
+resources/
+settings.gradle

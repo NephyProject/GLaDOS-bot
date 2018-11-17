@@ -1,26 +1,59 @@
 buildscript {
-    ext.kotlin_version = '1.3.0'
+    ext.kotlin_version = '1.3.10'
     ext.ktor_version = '1.0.0-beta-3'
 
     repositories {
         mavenCentral()
         maven { url "https://dl.bintray.com/kotlin/kotlin-eap" }
     }
+
     dependencies {
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
     }
 }
 
-group 'jp.nephy'
+allprojects {
+    group 'jp.nephy'
+    apply plugin: 'kotlin'
 
-apply plugin: 'kotlin'
+    repositories {
+        mavenCentral()
+        jcenter()
+        maven { url "https://dl.bintray.com/kotlin/kotlin-eap" }
+        maven { url "https://dl.bintray.com/kotlin/ktor" }
+        maven { url "https://dl.bintray.com/kotlin/kotlinx" }
+    }
 
-repositories {
-    mavenCentral()
-    jcenter()
-    maven { url "https://dl.bintray.com/kotlin/kotlin-eap" }
-    maven { url "https://dl.bintray.com/kotlin/ktor" }
-    maven { url "https://dl.bintray.com/kotlin/kotlinx" }
+    compileKotlin {
+        kotlinOptions.jvmTarget = "1.8"
+        kotlinOptions.freeCompilerArgs += ["-Xuse-experimental=kotlin.Experimental"]
+    }
+
+    compileTestKotlin {
+        kotlinOptions.jvmTarget = "1.8"
+        kotlinOptions.freeCompilerArgs += ["-Xuse-experimental=kotlin.Experimental"]
+    }
+}
+
+subprojects {
+    dependencies {
+        compile rootProject
+    }
+
+    task fatJar(type: Jar) {
+        manifest {
+            attributes "Main-Class": "jp.nephy.glados.MainKt"
+        }
+        baseName = "glados-full"
+        from {
+            configurations.compile.findAll {
+                !it.name.endsWith('pom')
+            }.collect {
+                it.isDirectory() ? it : zipTree(it)
+            }
+        }
+        with jar
+    }
 }
 
 dependencies {
@@ -36,54 +69,33 @@ dependencies {
     compile "com.google.apis:google-api-services-youtube:v3-rev205-1.25.0"
     compile "org.apache.lucene:lucene-spellchecker:3.6.2"
 
-    /* WUI */
+    /* Web */
     compile "io.ktor:ktor-server-netty:$ktor_version"
     compile "io.ktor:ktor-html-builder:$ktor_version"
 
     /* Twitter API */
-    compile "jp.nephy:penicillin:3.1.0"
-    compile "io.ktor:ktor-client-apache:$ktor_version"
+    compile "jp.nephy:penicillin:3.2.0"
 
     /* Steam API */
     compile "com.lukaspradel:steam-web-api:1.2"
+    compile "org.openid4java:openid4java:1.0.0"
 
     /* Database */
-    compile "jp.nephy:jsonkt-kmongo:3.4"
+    compile "org.litote.kmongo:kmongo:3.9.0"
+
+    /* Hot reloading */
+    compile "io.methvin:directory-watcher:0.8.1"
 
     /* Misc */
-    compile "jp.nephy:common-utils:2.0.0"
-    compile "org.jsoup:jsoup:1.11.3"
+    compile "io.ktor:ktor-client-apache:$ktor_version"
+    compile "jp.nephy:jsonkt:4.0"
+    compile "org.apache.commons:commons-lang3:3.8.1"
     compile "com.rometools:rome:1.11.1"
-    compile "org.scilab.forge:jlatexmath:1.0.7"
 
     /* Logging */
-    compile "io.github.microutils:kotlin-logging:1.6.10"
+    compile "io.github.microutils:kotlin-logging:1.6.20"
     compile "ch.qos.logback:logback-core:1.2.3"
     compile "ch.qos.logback:logback-classic:1.2.3"
     compile "org.fusesource.jansi:jansi:1.17.1"
     compile "org.openjdk.jol:jol-core:0.9"
-}
-
-compileKotlin {
-    kotlinOptions.jvmTarget = "1.8"
-    kotlinOptions.freeCompilerArgs += ["-Xuse-experimental=kotlin.Experimental"]
-}
-compileTestKotlin {
-    kotlinOptions.jvmTarget = "1.8"
-    kotlinOptions.freeCompilerArgs += ["-Xuse-experimental=kotlin.Experimental"]
-}
-
-task fatJar(type: Jar) {
-    manifest {
-        attributes "Main-Class": "jp.nephy.glados.MainKt"
-    }
-    baseName = "${project.name}-full"
-    from {
-        configurations.compile.findAll {
-            !it.name.endsWith('pom')
-        }.collect {
-            it.isDirectory() ? it : zipTree(it)
-        }
-    }
-    with jar
 }

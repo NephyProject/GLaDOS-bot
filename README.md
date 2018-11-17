@@ -8,10 +8,15 @@ GLaDOS-Bot は [かいげん Discord](https://nephy.jp/discord) 等で稼働し�
 
 独自のクラスローダを内蔵しており, 容易に機能の追加を行えるようにしています。
 
-## プラグイン API
+
+このリポジトリには プラグインを含んでいません。プラグイン集は [こちら](https://github.com/NephyProject/GLaDOS-bot-plugins) からどうぞ。
+
+## Plugin API
 [HackMD](https://hackmd.io/5URKBTt6Q02L3FneACyH9A) で公開しています。
 
-誰でもプラグインを作成して機能追加できます。
+誰でもプラグインを作成して機能を追加できます。
 
-## 現在稼働しているプラグイン
-開発の頻度が高いため, [HackMD](https://hackmd.io/MOHsvy2iRGmyCeCaYcs_Sw) で公開しています。
+## Build
+Gradle のマルチプロジェクトに対応しているため 依存関係を分離できます。
+
+Gradle の subproject に `fatJar` タスクが追加されるので これを実行することでプラグイン同梱のJarを作成できます。
