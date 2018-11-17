@@ -16,8 +16,10 @@
             <outputPatternAsHeader>false</outputPatternAsHeader>
             <pattern>[%-5level] [%d{HH:mm:ss.SSS}] [%logger / %thread] %m%n</pattern>
         </encoder>
-        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
             <level>INFO</level>
+            <onMatch>ACCEPT</onMatch>
+            <onMismatch>DENY</onMismatch>
         </filter>
     </appender>
     <appender name="ERROR_FILE" class="ch.qos.logback.core.FileAppender">
@@ -28,13 +30,14 @@
             <pattern>[%-5level] [%d{HH:mm:ss.SSS}] [%logger / %thread] %m%n</pattern>
         </encoder>
         <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
-            <level>ERROR</level>
+            <level>WARN</level>
         </filter>
     </appender>
 
-    <logger name="GLaDOS" level="DEBUG" />
-    <logger name="Plugin" level="DEBUG" />
-    <logger name="Subscription" level="DEBUG" />
+    <logger name="GLaDOS" level="INFO" />
+    <logger name="Plugin" level="INFO" />
+    <logger name="Subscription" level="INFO" />
+    <logger name="Penicillin" level="INFO"/>
     <logger name="net.dv8tion.jda" level="ERROR" />
 
     <root level="INFO">

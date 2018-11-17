@@ -12,6 +12,7 @@
     <logger name="GLaDOS" level="ALL" />
     <logger name="Plugin" level="ALL" />
     <logger name="Subscription" level="ALL" />
+    <logger name="Penicillin" level="ALL"/>
     <logger name="net.dv8tion.jda" level="ERROR" />
 
     <root level="INFO">
