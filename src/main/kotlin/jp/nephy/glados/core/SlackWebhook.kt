@@ -6,8 +6,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.content.OutgoingContent
 import jp.nephy.glados.dispatcher
 import jp.nephy.glados.httpClient
-import jp.nephy.jsonkt.mutableJsonObjectOf
-import jp.nephy.jsonkt.toJsonString
+import jp.nephy.jsonkt.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.io.ByteWriteChannel
 import kotlinx.coroutines.io.writeStringUtf8
@@ -36,7 +35,7 @@ class SlackWebhook(private val url: String, private val retryInterval: Long = 3,
                 return true
             } catch (e: CancellationException) {
                 return false
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 logger.error(e) { "Sending payload to Slack was failed. (${it + 1}/$maxRetries)" }
             }
 
@@ -55,7 +54,7 @@ class SlackWebhook(private val url: String, private val retryInterval: Long = 3,
             private val urlRegex = "^http(s)?://.+".toRegex()
         }
 
-        private val payload = mutableJsonObjectOf()
+        private val payload = mutableMapOf<String, String>()
 
         init {
             if (channel != null) {
@@ -107,6 +106,5 @@ class SlackWebhook(private val url: String, private val retryInterval: Long = 3,
             masterJob.cancelChildren()
             masterJob.cancelAndJoin()
         }
-        httpClient.close()
     }
 }

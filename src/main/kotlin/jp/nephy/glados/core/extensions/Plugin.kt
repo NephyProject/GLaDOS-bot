@@ -3,27 +3,29 @@
 package jp.nephy.glados.core.extensions
 
 import jp.nephy.glados.config
+import jp.nephy.glados.core.extensions.messages.HexColor
 import jp.nephy.glados.core.plugins.CommandError
 import jp.nephy.glados.core.plugins.Plugin
 import net.dv8tion.jda.core.entities.*
+import net.dv8tion.jda.core.requests.restaction.MessageAction
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.contract
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
 
-inline fun Plugin.rolesLazy(name: String) = object: ReadOnlyProperty<Plugin, List<Role>> {
+inline fun Plugin.rolesLazy(name: String): ReadOnlyProperty<Plugin, List<Role>> = object: ReadOnlyProperty<Plugin, List<Role>> {
     override fun getValue(thisRef: Plugin, property: KProperty<*>): List<Role> {
         return config.guilds.mapNotNull { it.value.role(name) }
     }
 }
 
-inline fun Plugin.voiceChannelsLazy(name: String) = object: ReadOnlyProperty<Plugin, List<VoiceChannel>> {
+inline fun Plugin.voiceChannelsLazy(name: String): ReadOnlyProperty<Plugin, List<VoiceChannel>> = object: ReadOnlyProperty<Plugin, List<VoiceChannel>> {
     override fun getValue(thisRef: Plugin, property: KProperty<*>): List<VoiceChannel> {
         return config.guilds.mapNotNull { it.value.voiceChannel(name) }
     }
 }
 
-inline fun Plugin.textChannelsLazy(name: String) = object: ReadOnlyProperty<Plugin, List<TextChannel>> {
+inline fun Plugin.textChannelsLazy(name: String): ReadOnlyProperty<Plugin, List<TextChannel>> = object: ReadOnlyProperty<Plugin, List<TextChannel>> {
     override fun getValue(thisRef: Plugin, property: KProperty<*>): List<TextChannel> {
         return config.guilds.mapNotNull { it.value.textChannel(name) }
     }
@@ -81,6 +83,29 @@ inline fun Message.embedError(commandName: String, description: () -> String): N
 
 inline fun Message.simpleError(commandName: String, description: StringBuilder.() -> Unit): Nothing = throw CommandError.Simple(this, commandName, buildString(description))
 
-inline fun Plugin.Command.Event.embedError(description: () -> String): Nothing = throw CommandError.Simple(message, command.primaryCommandName, description.invoke())
+inline fun Plugin.Command.Event.embedError(description: () -> String): Nothing = throw CommandError.Simple(message, command.primaryCommandSyntax, description.invoke())
 
-inline fun Plugin.Command.Event.simpleError(description: StringBuilder.() -> Unit): Nothing = throw CommandError.Embed(message, command.primaryCommandName, buildString(description))
+inline fun Plugin.Command.Event.simpleError(description: StringBuilder.() -> Unit): Nothing = throw CommandError.Embed(message, command.primaryCommandSyntax, buildString(description))
+
+inline fun Message.embedResult(commandName: String, noinline description: () -> String): MessageAction {
+    return reply {
+        embed {
+            title(commandName)
+            description(description)
+            timestamp()
+            color(HexColor.Good)
+        }
+    }
+}
+
+inline fun Message.simpleResult(noinline description: () -> String): MessageAction {
+    return message {
+        message {
+            append("${author.asMention} ${description.invoke()}")
+        }
+    }
+}
+
+inline fun Plugin.Command.Event.embedResult(noinline description: () -> String) = message.embedResult(command.primaryCommandSyntax, description)
+
+inline fun Plugin.Command.Event.simpleResult(noinline description: () -> String) = message.simpleResult(description)

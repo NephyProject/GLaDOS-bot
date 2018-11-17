@@ -23,7 +23,7 @@ fun <T> RestAction<T>.launch(timeout: Long = 0, unit: TimeUnit = TimeUnit.SECOND
             delay(unit.toMillis(timeout))
             callback(it)
         }
-    } catch (e: Exception) {
+    } catch (e: Throwable) {
         val logger = KotlinLogging.logger("GLaDOS.Coroutines")
         logger.error(e) { "非同期処理中に例外が発生しました。" }
     }

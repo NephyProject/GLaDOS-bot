@@ -1,8 +1,16 @@
 package jp.nephy.glados.core
 
+import ch.qos.logback.classic.Level
+import io.ktor.client.engine.apache.Apache
+import jp.nephy.glados.core.extensions.EmptyJsonObject
 import jp.nephy.glados.jda
 import jp.nephy.jsonkt.*
 import jp.nephy.jsonkt.delegation.*
+import jp.nephy.penicillin.PenicillinClient
+import jp.nephy.penicillin.core.emulation.EmulationMode
+import kotlinx.serialization.json.*
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
 import net.dv8tion.jda.core.entities.Guild
 import net.dv8tion.jda.core.entities.Role
 import net.dv8tion.jda.core.entities.TextChannel
@@ -18,7 +26,7 @@ fun Boolean?.isFalseOrNull(): Boolean {
     return this != true
 }
 
-data class GLaDOSConfig(override val json: ImmutableJsonObject): JsonModel {
+data class GLaDOSConfig(override val json: JsonObject): JsonModel {
     companion object {
         fun load(path: Path): GLaDOSConfig {
             return path.parse()
@@ -30,11 +38,24 @@ data class GLaDOSConfig(override val json: ImmutableJsonObject): JsonModel {
     val clientSecret by string("client_secret")
     val redirectUri by string("redirect_uri")
     val ownerId by nullableLong("owner_id")
+    val logLevel by lambda("log_level") { Level.toLevel(it.string, Level.INFO)!! }
+    val logLevelForSlack by lambda("log_level_for_slack") { Level.toLevel(it.string, Level.INFO)!! }
     val prefix by string { "!" }
+    val pluginsPackagePrefixes by stringList("plugins_package_prefixes")
     val parallelism by int { minOf(Runtime.getRuntime().availableProcessors() / 2, 1) }
-    val wuiHost by string("wui_host") { "127.0.0.1" }
-    val wuiPort by int("wui_port") { 8080 }
-    val guilds by lambda { it.immutableJsonObject.map { guild -> guild.key to guild.value.immutableJsonObject.parse<GuildConfig>() }.toMap() }
+    val mongodbHost by string("mongodb_host") { "127.0.0.1" }
+
+    val web by model<Web>()
+
+    data class Web(override val json: JsonObject): JsonModel {
+        val host by string { "127.0.0.1" }
+        val port by int { 8080 }
+        val staticResourcePatterns by lambdaList("static_resource_patterns") { it.string.toRegex() }
+        val ignoreIpAddressRanges by lambdaList("ignore_ip_address_ranges") { it.string.toRegex() }
+        val ignoreUserAgents by lambdaList("ignore_user_agents") { it.string.toRegex() }
+    }
+
+    val guilds by lambda { it.jsonObject.map { guild -> guild.key to guild.value.jsonObject.parse<GuildConfig>() }.toMap() }
 
     fun forGuild(guild: Guild?): GuildConfig? {
         if (guild == null) {
@@ -44,25 +65,25 @@ data class GLaDOSConfig(override val json: ImmutableJsonObject): JsonModel {
         return guilds.values.find { it.id == guild.idLong }
     }
 
-    data class GuildConfig(override val json: ImmutableJsonObject): JsonModel {
+    data class GuildConfig(override val json: JsonObject): JsonModel {
         val id by long
         val isMain by boolean("is_main") { false }
 
-        private val textChannels by immutableJsonObject("text_channels") { immutableJsonObjectOf() }
-        private val voiceChannels by immutableJsonObject("voice_channels") { immutableJsonObjectOf() }
-        private val roles by immutableJsonObject { immutableJsonObjectOf() }
-        private val options by immutableJsonObject { immutableJsonObjectOf() }
+        private val textChannels by jsonObject("text_channels") { EmptyJsonObject }
+        private val voiceChannels by jsonObject("voice_channels") { EmptyJsonObject }
+        private val roles by jsonObject { EmptyJsonObject }
+        private val options by jsonObject { EmptyJsonObject }
 
         fun textChannel(key: String): TextChannel? {
-            return jda.getTextChannelById(textChannels.getOrNull(key)?.nullableLong ?: return null)
+            return jda.getTextChannelById(textChannels.getOrNull(key)?.longOrNull ?: return null)
         }
 
         fun voiceChannel(key: String): VoiceChannel? {
-            return jda.getVoiceChannelById(voiceChannels.getOrNull(key)?.nullableLong ?: return null)
+            return jda.getVoiceChannelById(voiceChannels.getOrNull(key)?.longOrNull ?: return null)
         }
 
         fun role(key: String): Role? {
-            return jda.getRoleById(roles.getOrNull(key)?.nullableLong ?: return null)
+            return jda.getRoleById(roles.getOrNull(key)?.longOrNull ?: return null)
         }
 
         fun <T> option(key: String, operation: (JsonElement) -> T): T? {
@@ -70,11 +91,15 @@ data class GLaDOSConfig(override val json: ImmutableJsonObject): JsonModel {
         }
 
         fun stringOption(key: String, default: String): String {
-            return option(key) { it.nullableString } ?: default
+            return option(key) { it.stringOrNull } ?: default
+        }
+
+        fun stringOption(key: String): String? {
+            return option(key) { it.stringOrNull }
         }
 
         fun intOption(key: String, default: Int): Int {
-            return option(key) { it.nullableInt } ?: default
+            return option(key) { it.intOrNull } ?: default
         }
 
         fun boolOption(key: String, default: Boolean): Boolean {
@@ -82,7 +107,11 @@ data class GLaDOSConfig(override val json: ImmutableJsonObject): JsonModel {
         }
 
         fun boolOption(key: String): Boolean? {
-            return option(key) { it.nullableBool }
+            return option(key) { it.booleanOrNull }
+        }
+
+        inline fun <reified T: JsonModel> modelListOption(key: String): List<T> {
+            return option(key) { it.jsonArray.parseList<T>() }.orEmpty()
         }
 
         inline fun <T> withTextChannel(key: String, operation: (TextChannel) -> T?): T? {
@@ -97,9 +126,61 @@ data class GLaDOSConfig(override val json: ImmutableJsonObject): JsonModel {
             return operation(role(key) ?: return null)
         }
     }
+
+    val accounts by model<Accounts>()
+
+    data class Accounts(override val json: JsonObject): JsonModel {
+        val twitter by lambda { it.jsonObject.map { guild -> guild.key to guild.value.jsonObject.parse<TwitterAccount>() }.toMap() }
+
+        data class TwitterAccount(override val json: JsonObject): JsonModel {
+            private val ck by string
+            private val cs by string
+            private val at by string
+            private val ats by string
+
+            val client: PenicillinClient
+                get() = client()
+            val officialClient: PenicillinClient
+                get() = client(EmulationMode.TwitterForiPhone)
+            val user by lazy {
+                client.use {
+                    it.account.verifyCredentials().complete().use {
+                        it.result
+                    }
+                }
+            }
+
+            fun client(mode: EmulationMode = EmulationMode.None): PenicillinClient {
+                return PenicillinClient {
+                    account {
+                        application(ck, cs)
+                        token(at, ats)
+                    }
+                    httpClient(Apache)
+                    emulationMode = mode
+                }
+            }
+
+            override fun hashCode(): Int {
+                return ck.hashCode() + 3 * cs.hashCode() + 33 * at.hashCode() + 333 + ats.hashCode()
+            }
+
+            override fun equals(other: Any?): Boolean {
+                return if (other !is TwitterAccount) {
+                    false
+                } else {
+                    ck == other.ck && cs == other.cs && at == other.at && ats == other.ats
+                }
+            }
+        }
+    }
+
+    fun twitterAccount(name: String): Accounts.TwitterAccount {
+        return accounts.twitter[name] ?: throw IllegalArgumentException("$name is not found in config.json.")
+    }
 }
 
-class SecretConfig private constructor(override val json: ImmutableJsonObject): JsonModel {
+class SecretConfig private constructor(override val json: JsonObject): JsonModel {
     companion object {
         fun load(path: Path): SecretConfig {
             return SecretConfig(path.toJsonObject())
@@ -118,37 +199,32 @@ class SecretConfig private constructor(override val json: ImmutableJsonObject): 
         return forKeySafe(key, default)!!
     }
 
+    fun string(key: String): String? {
+        return forKey(key)
+    }
+
     @Suppress("IMPLICIT_CAST_TO_ANY")
     inline fun <reified T> forKeySafe(key: String, default: T? = null): T? {
         val value = json.getOrNull(key) ?: return null
 
         return when (T::class) {
             Boolean::class -> {
-                value.toBooleanOrNull()
-            }
-            Byte::class -> {
-                value.toByteOrNull()
-            }
-            Char::class -> {
-                value.toCharOrNull()
-            }
-            Short::class -> {
-                value.toShortOrNull()
+                value.booleanOrNull
             }
             Int::class -> {
-                value.toIntOrNull()
+                value.intOrNull
             }
             Long::class -> {
-                value.toLongOrNull()
+                value.longOrNull
             }
             Float::class -> {
-                value.toFloatOrNull()
+                value.floatOrNull
             }
             Double::class -> {
-                value.toDoubleOrNull()
+                value.doubleOrNull
             }
             String::class -> {
-                value.toStringValueOrNull()
+                value.stringOrNull
             }
             else -> null
         } as T? ?: default
@@ -160,7 +236,7 @@ class SecretConfig private constructor(override val json: ImmutableJsonObject): 
 
     fun <T> (() -> T?).safeInvoke() = try {
         invoke()
-    } catch (e: Exception) {
+    } catch (e: Throwable) {
         null
     }
 }

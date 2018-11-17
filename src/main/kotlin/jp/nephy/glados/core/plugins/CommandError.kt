@@ -7,13 +7,12 @@ import jp.nephy.glados.core.extensions.reply
 import net.dv8tion.jda.core.entities.Message
 import java.util.concurrent.TimeUnit
 
-abstract class CommandError(val jdaMessage: Message, val commandName: String, val description: String): Exception() {
+abstract class CommandError(val jdaMessage: Message, val commandName: String, val description: String): Throwable() {
     override val message: String
         get() = "コマンド: $commandName\n$description"
 
     init {
-        @Suppress("LeakingThis")
-        sendErrorReport()
+        @Suppress("LeakingThis") sendErrorReport()
     }
 
     abstract fun sendErrorReport()

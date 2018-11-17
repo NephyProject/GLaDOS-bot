@@ -1,11 +1,11 @@
 package jp.nephy.glados.core.extensions.messages.prompt
 
+import jp.nephy.glados.core.extensions.joinToStringIndexed
 import jp.nephy.glados.core.extensions.launch
 import jp.nephy.glados.core.extensions.messages.HexColor
 import jp.nephy.glados.core.extensions.reply
 import jp.nephy.glados.core.extensions.wait
 import jp.nephy.glados.eventWaiter
-import jp.nephy.utils.joinToStringIndexed
 import kotlinx.coroutines.delay
 import net.dv8tion.jda.core.entities.Member
 import net.dv8tion.jda.core.entities.Message
@@ -15,12 +15,7 @@ import net.dv8tion.jda.core.events.message.guild.react.GuildMessageReactionAddEv
 
 class PromptBuilder(val channel: MessageChannel, val target: Member) {
     inline fun <T: PromptEmoji, reified R: Enum<T>> emoji(
-            author: String? = null,
-            title: String? = null,
-            description: String? = null,
-            color: HexColor = HexColor.Plain,
-            timeoutSec: Int? = null,
-            crossinline then: (selected: R, message: Message, event: GuildMessageReactionAddEvent) -> Unit
+        author: String? = null, title: String? = null, description: String? = null, color: HexColor = HexColor.Plain, timeoutSec: Int? = null, crossinline then: (selected: R, message: Message, event: GuildMessageReactionAddEvent) -> Unit
     ) {
         @Suppress("UNCHECKED_CAST")
         val enumConstants = R::class.java.enumConstants.map { it as T }
@@ -37,16 +32,12 @@ class PromptBuilder(val channel: MessageChannel, val target: Member) {
                     if (description != null) {
                         appendln(description)
                     }
-                    append(
-                            enumConstants.joinToString(" / ") { it.friendlyName }
-                    )
+                    append(enumConstants.joinToString(" / ") { it.friendlyName })
                     appendln("が利用可能です。絵文字で選択してください。")
                     if (timeoutSec != null) {
                         appendln("応答がない場合 ${timeoutSec}秒後に自動でプロンプトを終了します。")
                     }
-                    append(
-                            enumConstants.joinToString(" / ") { "${it.emoji}: ${it.friendlyName}" }
-                    )
+                    append(enumConstants.joinToString(" / ") { "${it.emoji}: ${it.friendlyName}" })
                 }
                 color(color)
                 timestamp()
@@ -72,8 +63,7 @@ class PromptBuilder(val channel: MessageChannel, val target: Member) {
                         timestamp()
                     }
                 }.launch {
-                    @Suppress("UNCHECKED_CAST")
-                    then(selected as R, it, this)
+                    @Suppress("UNCHECKED_CAST") then(selected as R, it, this)
 
                     delay(10000)
                     it.delete().launch()
@@ -83,13 +73,7 @@ class PromptBuilder(val channel: MessageChannel, val target: Member) {
     }
 
     inline fun <T: PromptEnum, reified R: Enum<T>> enum(
-            default: R,
-            author: String? = null,
-            title: String? = null,
-            description: String? = null,
-            color: HexColor = HexColor.Plain,
-            timeoutSec: Int? = null,
-            crossinline then: (selected: R, message: Message, event: GuildMessageReceivedEvent) -> Unit
+        default: R, author: String? = null, title: String? = null, description: String? = null, color: HexColor = HexColor.Plain, timeoutSec: Int? = null, crossinline then: (selected: R, message: Message, event: GuildMessageReceivedEvent) -> Unit
     ) {
         @Suppress("UNCHECKED_CAST")
         val enumConstants = R::class.java.enumConstants.map { it as T }
@@ -154,8 +138,7 @@ class PromptBuilder(val channel: MessageChannel, val target: Member) {
                         timestamp()
                     }
                 }.launch {
-                    @Suppress("UNCHECKED_CAST")
-                    then(selected as R, it, this)
+                    @Suppress("UNCHECKED_CAST") then(selected as R, it, this)
 
                     delay(10000)
                     it.delete().launch()
@@ -165,16 +148,16 @@ class PromptBuilder(val channel: MessageChannel, val target: Member) {
     }
 
     fun <T> list(
-            list: List<T>,
-            default: T,
-            itemTitle: (T) -> String = { toString() },
-            itemDescription: (T) -> String = { toString() },
-            author: String? = null,
-            title: String? = null,
-            description: String? = null,
-            color: HexColor = HexColor.Plain,
-            timeoutSec: Int? = null,
-            then: (selected: T, message: Message, event: GuildMessageReceivedEvent) -> Unit
+        list: List<T>,
+        default: T,
+        itemTitle: (T) -> String = { toString() },
+        itemDescription: (T) -> String = { toString() },
+        author: String? = null,
+        title: String? = null,
+        description: String? = null,
+        color: HexColor = HexColor.Plain,
+        timeoutSec: Int? = null,
+        then: (selected: T, message: Message, event: GuildMessageReceivedEvent) -> Unit
     ) {
         val digit = "^(\\d+)$".toRegex()
 
@@ -239,8 +222,7 @@ class PromptBuilder(val channel: MessageChannel, val target: Member) {
                         color(color)
                     }
                 }.launch {
-                    @Suppress("UNCHECKED_CAST")
-                    then(selected, it, this)
+                    @Suppress("UNCHECKED_CAST") then(selected, it, this)
 
                     delay(10000)
                     it.delete().launch()

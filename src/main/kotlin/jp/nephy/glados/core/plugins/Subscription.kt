@@ -1,32 +1,38 @@
 package jp.nephy.glados.core.plugins
 
+import io.ktor.application.ApplicationCall
+import io.ktor.application.call
+import io.ktor.features.origin
+import io.ktor.http.HttpMethod
+import io.ktor.http.HttpStatusCode
+import io.ktor.request.httpMethod
+import io.ktor.request.path
+import io.ktor.util.pipeline.PipelineContext
 import jp.nephy.glados.config
-import jp.nephy.glados.core.Logger
-import jp.nephy.glados.core.extensions.invocationException
-import jp.nephy.glados.core.extensions.launchAndDelete
+import jp.nephy.glados.core.SlackLogger
+import jp.nephy.glados.core.extensions.*
 import jp.nephy.glados.core.extensions.messages.HexColor
-import jp.nephy.glados.core.extensions.reply
-import jp.nephy.utils.round
-import jp.nephy.utils.stackTraceString
+import jp.nephy.glados.core.extensions.web.SitemapUpdateFrequency
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
-import net.dv8tion.jda.core.entities.Guild
 import org.openjdk.jol.info.GraphLayout
 import java.util.*
 import java.util.concurrent.TimeUnit
+import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
 import kotlin.reflect.full.callSuspend
 import kotlin.reflect.full.isSubclassOf
 import kotlin.reflect.full.valueParameters
 import kotlin.reflect.jvm.jvmErasure
-import kotlin.system.measureTimeMillis
+import kotlin.system.measureNanoTime
 
 object Subscription {
     private const val megabytes = 1048576.0
+    private const val nano = 1000000.0
 
     abstract class Element<T: Annotation>(protected val annotation: T, private val instance: Plugin, private val function: KFunction<*>) {
-        val logger = Logger("Subscription.${javaClass.simpleName}.$fullname")
+        val logger: SlackLogger = SlackLogger("Subscription.${javaClass.simpleName}.$fullname")
 
         val name: String
             get() = function.name
@@ -35,28 +41,27 @@ object Subscription {
         abstract val priority: Plugin.Priority
 
         private val parameterClasses = function.valueParameters.map { it.type.jvmErasure }
+        fun matchParameters(vararg classes: KClass<*>): Boolean {
+            return parameterClasses.size == classes.size && classes.zip(parameterClasses).all { it.first.isSubclassOf(it.second) }
+        }
+
         fun matchParameters(vararg args: Any): Boolean {
-            return parameterClasses.size == args.size && args.zip(parameterClasses).all { it.first::class.isSubclassOf(it.second) }
+            return matchParameters(*args.map { it::class }.toTypedArray())
         }
 
         @Throws(CancellationException::class)
-        suspend fun invoke(guild: Guild?, vararg args: Any) {
-            try {
-                if (!logger.isTraceEnabled) {
+        suspend fun invoke(vararg args: Any): Boolean {
+            return runCatching {
+                val processTimeNano = measureNanoTime {
                     function.callSuspend(instance, *args)
-                } else {
-                    val processTimeMillis = measureTimeMillis {
-                        function.callSuspend(instance, *args)
-                    }
-
-                    val layout = GraphLayout.parseInstance(instance)
-                    if (guild != null) {
-                        logger.trace { "$processTimeMillis ms, ${(layout.totalSize() / megabytes).round(3)} MB で終了しました。 (${guild.name})" }
-                    } else {
-                        logger.trace { "$processTimeMillis ms, ${(layout.totalSize() / megabytes).round(3)} MB  で終了しました。" }
-                    }
                 }
-            } catch (e: Exception) {
+
+                logger.trace {
+                    val layout = GraphLayout.parseInstance(instance)
+
+                    "${(processTimeNano / nano).round(3)} ms, ${(layout.totalSize() / megabytes).round(3)} MB で終了しました。"
+                }
+            }.onFailure { e ->
                 when (val exception = e.invocationException) {
                     is CancellationException -> {
                         withContext(NonCancellable) {
@@ -72,8 +77,8 @@ object Subscription {
                             is Plugin.Command.Event -> {
                                 event.reply {
                                     embed {
-                                        title("`${event.commandLine}` の実行中に例外が発生しました。")
-                                        description { "ご不便をお掛けしています。この問題が何度も発生する場合は開発者にご連絡ください。" }
+                                        title("`${event.command.primaryCommandSyntax}` の実行中に例外が発生しました")
+                                        description { "引数: `${event.args}`\nご不便をお掛けしています。この問題が何度も発生する場合は開発者にご連絡ください。" }
                                         field("スタックトレース") { "${exception.stackTraceString.take(300)}..." }
                                         color(HexColor.Bad)
                                         timestamp()
@@ -86,7 +91,7 @@ object Subscription {
                         }
                     }
                 }
-            }
+            }.isSuccess
         }
     }
 
@@ -134,7 +139,7 @@ object Subscription {
         override val priority: Plugin.Priority
             get() = annotation.priority
 
-        val intervalMillis = annotation.unit.toMillis(annotation.interval)
+        val intervalMillis: Long = annotation.unit.toMillis(annotation.interval)
     }
 
     class Schedule(annotation: Plugin.Schedule, instance: Plugin, function: KFunction<*>): Element<Plugin.Schedule>(annotation, instance, function) {
@@ -180,6 +185,107 @@ object Subscription {
 
         fun matches(calendar: Calendar): Boolean {
             return calendar.get(Calendar.HOUR_OF_DAY) in timing.hours && calendar.get(Calendar.MINUTE) in timing.minutes
+        }
+    }
+
+    class Tweetstorm(annotation: Plugin.Tweetstorm, instance: Plugin, function: KFunction<*>): Element<Plugin.Tweetstorm>(annotation, instance, function) {
+        val accounts = annotation.accounts.map { config.twitterAccount(it) }
+
+        override val priority: Plugin.Priority
+            get() = annotation.priority
+    }
+
+    object Web {
+        class Page(annotation: Plugin.Web.Page, instance: Plugin, function: KFunction<*>): Element<Plugin.Web.Page>(annotation, instance, function) {
+            companion object {
+                private val fragmentPattern = "^\\{(.+)}$".toRegex()
+            }
+
+            private val httpMethods: List<HttpMethod>
+                get() = annotation.methods.ifEmpty { Plugin.Web.HttpMethod.values() }.map { it.ktor }
+            val domain: String?
+                get() = annotation.domain.ifBlank { null }
+            val updateFrequency: SitemapUpdateFrequency
+                get() = annotation.updateFrequency
+            val banRobots: Boolean
+                get() = annotation.banRobots
+
+            val pathType: Plugin.Web.PathType
+                get() = annotation.pathType
+            val path: String
+                get() = "/${annotation.path.removePrefix("/").removeSuffix("/").trim()}"
+
+            private val regexPath: Regex
+                get() = "^$path$".toRegex(annotation.regexOptions.toSet())
+
+            private val fragments = if (pathType == Plugin.Web.PathType.Pattern) {
+                path.split("/").mapIndexedNotNull { i, it ->
+                    (fragmentPattern.matchEntire(it)?.groupValues?.get(1) ?: return@mapIndexedNotNull null) to i
+                }.toMap()
+            } else {
+                null
+            }.orEmpty()
+
+            fun canHandle(call: ApplicationCall): Boolean {
+                if (!matchParameters(Plugin.Web.AccessEvent::class) || call.request.httpMethod !in httpMethods || (domain != null && domain != call.request.origin.host)) {
+                    return false
+                }
+
+                val requestPath = call.request.path()
+                return when (annotation.pathType) {
+                    Plugin.Web.PathType.Normal -> {
+                        path == requestPath
+                    }
+                    Plugin.Web.PathType.Regex -> {
+                        regexPath.matches(requestPath)
+                    }
+                    Plugin.Web.PathType.Pattern -> {
+                        requestPath.split("/").size == path.split("/").size
+                    }
+                }
+            }
+
+            fun makeEvent(context: PipelineContext<Unit, ApplicationCall>): Plugin.Web.AccessEvent {
+                val matchResult = if (pathType == Plugin.Web.PathType.Regex) {
+                    regexPath.matchEntire(context.call.request.path())
+                } else {
+                    null
+                }
+                val fragments = if (pathType == Plugin.Web.PathType.Pattern) {
+                    val currentFragments = context.call.request.path().split("/")
+
+                    fragments.map { (name, index) ->
+                        name to currentFragments[index]
+                    }.toMap()
+                } else {
+                    null
+                }.orEmpty()
+
+                return Plugin.Web.AccessEvent(context, matchResult, fragments)
+            }
+
+            override val priority: Plugin.Priority
+                get() = annotation.priority
+        }
+
+        class ErrorPage(annotation: Plugin.Web.ErrorPage, instance: Plugin, function: KFunction<*>): Element<Plugin.Web.ErrorPage>(annotation, instance, function) {
+            val domain: String?
+                get() = annotation.domain.ifBlank { null }
+            val statuses: List<HttpStatusCode>
+                get() = annotation.statuses.map { it.ktor }
+
+            override val priority: Plugin.Priority
+                get() = annotation.priority
+        }
+
+        class Session(annotation: Plugin.Web.Session, instance: Plugin, function: KFunction<*>): Element<Plugin.Web.Session>(annotation, instance, function) {
+            val sessionClass: KClass<*>
+                get() = annotation.sessionClass
+            val sessionName: String
+                get() = annotation.name
+
+            override val priority: Plugin.Priority
+                get() = annotation.priority
         }
     }
 }

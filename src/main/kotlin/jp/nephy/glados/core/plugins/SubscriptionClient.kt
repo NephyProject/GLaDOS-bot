@@ -3,71 +3,140 @@
 package jp.nephy.glados.core.plugins
 
 import com.sedmelluq.discord.lavaplayer.player.event.*
+import io.ktor.application.*
+import io.ktor.features.*
+import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
+import io.ktor.request.path
+import io.ktor.request.userAgent
+import io.ktor.response.respond
+import io.ktor.response.respondFile
+import io.ktor.response.respondText
+import io.ktor.routing.Routing
+import io.ktor.routing.get
+import io.ktor.server.engine.embeddedServer
+import io.ktor.server.netty.Netty
+import io.ktor.sessions.SessionStorageMemory
+import io.ktor.sessions.Sessions
+import io.ktor.sessions.cookie
+import io.ktor.util.AttributeKey
+import io.ktor.util.pipeline.PipelineContext
 import jp.nephy.glados.config
-import jp.nephy.glados.core.Logger
+import jp.nephy.glados.core.GLaDOSConfig
+import jp.nephy.glados.core.SlackLogger
 import jp.nephy.glados.core.audio.player.GuildPlayer
 import jp.nephy.glados.core.audio.player.player
 import jp.nephy.glados.core.extensions.*
 import jp.nephy.glados.core.extensions.messages.HexColor
+import jp.nephy.glados.core.extensions.web.FontOtf
+import jp.nephy.glados.core.extensions.web.FontWoff2
+import jp.nephy.glados.core.extensions.web.Navimap
 import jp.nephy.glados.dispatcher
+import jp.nephy.jsonkt.*
+import jp.nephy.penicillin.core.streaming.UserStreamListener
+import jp.nephy.penicillin.models.*
 import kotlinx.coroutines.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import net.dv8tion.jda.core.JDABuilder
 import net.dv8tion.jda.core.audio.SpeakingMode
 import net.dv8tion.jda.core.audio.hooks.ConnectionListener
 import net.dv8tion.jda.core.audio.hooks.ConnectionStatus
 import net.dv8tion.jda.core.entities.*
+import net.dv8tion.jda.core.entities.User
 import net.dv8tion.jda.core.events.Event
 import net.dv8tion.jda.core.events.ReadyEvent
 import net.dv8tion.jda.core.events.message.GenericMessageEvent
 import net.dv8tion.jda.core.events.message.MessageReceivedEvent
 import net.dv8tion.jda.core.events.message.MessageUpdateEvent
+import net.dv8tion.jda.core.hooks.AnnotatedEventManager
 import net.dv8tion.jda.core.hooks.SubscribeEvent
 import java.util.*
-import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.TimeUnit
-import kotlin.system.measureTimeMillis
 
 object SubscriptionClient {
+    suspend fun registerClients(builder: JDABuilder) {
+        PluginManager.loadAll()
+
+        builder.apply {
+            setEventManager(AnnotatedEventManager())
+
+            SubscriptionClient::class.nestedClasses.mapNotNull { it.objectInstance }.forEach {
+                if (it is EventListener) {
+                    addEventListener(it)
+                }
+                if (it is Client<*, *>) {
+                    it.sortByPriority()
+                }
+            }
+        }
+    }
+
     abstract class Client<A: Annotation, S: Subscription.Element<A>>: CoroutineScope {
-        val logger = Logger("GLaDOS.SubscriptionClient.${javaClass.simpleName}")
-        val subscriptions = CopyOnWriteArrayList<S>()
+        protected val logger = SlackLogger("GLaDOS.SubscriptionClient.${javaClass.simpleName}")
 
         private val job = Job()
         final override val coroutineContext = dispatcher + job
 
-        fun sort() {
-            subscriptions.sortBy { it.priority }
+        private val subscriptionsMutex = Mutex()
+        private val subscriptions = mutableListOf<S>()
+        val activeSubscriptions: List<S>
+            get() = subscriptions.toList()
+
+        operator fun plusAssign(target: S) {
+            launch {
+                subscriptionsMutex.withLock {
+                    subscriptions += target
+                }
+            }
+        }
+
+        operator fun plusAssign(targets: Collection<S>) {
+            launch {
+                subscriptionsMutex.withLock {
+                    subscriptions += targets
+                }
+            }
+        }
+
+        fun sortByPriority() {
+            launch {
+                subscriptionsMutex.withLock {
+                    subscriptions.sortBy { it.priority }
+                }
+            }
         }
     }
 
     object ListenerEvent: Client<Plugin.Event, Subscription.Event>(), EventListener {
-        @SubscribeEvent fun onGenericEvent(event: Event) {
+        @SubscribeEvent
+        fun onGenericEvent(event: Event) {
             launch {
-                val targets = subscriptions.filter { it.matchParameters(event) }
+                val targets = activeSubscriptions.filter { it.matchParameters(event) }
                 if (targets.isEmpty()) {
                     return@launch
                 }
 
-                val processTimeMillis = measureTimeMillis {
-                    val guild = try {
-                        event.javaClass.getMethod("getGuild").invoke(event) as? Guild
-                    } catch (e: NoSuchMethodException) {
-                        null
-                    }
-
-                    targets.forEach {
-                        launch {
-                            it.invoke(guild, event)
-                        }
-                    }
+                val guild = try {
+                    event.javaClass.getMethod("getGuild").invoke(event) as? Guild
+                } catch (e: NoSuchMethodException) {
+                    null
                 }
 
-                logger.trace { "${event.javaClass.canonicalName}: $processTimeMillis ms で起動しました。" }
+                targets.forEach {
+                    launch {
+                        it.invoke(event)
+                        it.logger.trace { "実行されました。(${guild?.name})" }
+                    }
+                }
             }
         }
     }
 
     object Command: Client<Plugin.Command, Subscription.Command>(), EventListener {
-        @SubscribeEvent fun onMessageReceived(event: MessageReceivedEvent) {
+        @SubscribeEvent
+        fun onMessageReceived(event: MessageReceivedEvent) {
             if (event.author.isBotOrSelfUser) {
                 return
             }
@@ -77,7 +146,8 @@ object SubscriptionClient {
             }
         }
 
-        @SubscribeEvent fun onMessageUpdate(event: MessageUpdateEvent) {
+        @SubscribeEvent
+        fun onMessageUpdate(event: MessageUpdateEvent) {
             if (event.author.isBotOrSelfUser) {
                 return
             }
@@ -90,7 +160,7 @@ object SubscriptionClient {
         private fun handleMessage(event: GenericMessageEvent, message: Message, channelType: ChannelType) {
             val text = message.contentDisplay.trim()
 
-            for (subscription in subscriptions) {
+            for (subscription in activeSubscriptions) {
                 val args = subscription.parseArgs(text) ?: continue
                 val commandEvent = when (event) {
                     is MessageReceivedEvent -> Plugin.Command.Event(args, subscription, event)
@@ -100,12 +170,24 @@ object SubscriptionClient {
 
                 when {
                     !subscription.satisfyChannelTypeRequirement(channelType) -> {
-                        logger.trace { "\"$text\": チャンネルタイプが対象外のため実行されませんでした。 (${commandEvent.authorName})" }
+                        logger.warn { "\"$text\": チャンネルタイプが対象外のため実行されませんでした。 (${commandEvent.authorName})" }
+                    }
+                    !subscription.satisfyBotChannelRequirement(event.channel) -> {
+                        commandEvent.reply {
+                            embed {
+                                title("コマンドエラー: `${commandEvent.command.primaryCommandSyntax}`")
+                                description { "このコマンドは ${config.forGuild(event.guild)?.textChannel("bot")?.asMention ?: "#bot"} チャンネルでのみ実行可能です。" }
+                                color(HexColor.Bad)
+                                timestamp()
+                            }
+                        }.launchAndDelete(15, TimeUnit.SECONDS)
+
+                        logger.warn { "\"$text\": Bot チャンネルではないため実行されませんでした。 (${commandEvent.authorName})" }
                     }
                     !satisfyCommandAvailabilityForGuildRequirement(event.guild) -> {
                         commandEvent.reply {
                             embed {
-                                title("コマンドエラー: `$text`")
+                                title("コマンドエラー: `${commandEvent.command.primaryCommandSyntax}`")
                                 description { "サーバ ${event.guild.name} ではGLaDOSのコマンド機能は利用できません。サーバ管理者またはGLaDOS開発者にご連絡ください。" }
                                 color(HexColor.Bad)
                                 timestamp()
@@ -117,7 +199,7 @@ object SubscriptionClient {
                     !subscription.satisfyArgumentsRequirement(commandEvent.argList) -> {
                         commandEvent.reply {
                             embed {
-                                title("コマンドエラー: `$text`")
+                                title("コマンドエラー: `${commandEvent.command.primaryCommandSyntax}`")
                                 descriptionBuilder {
                                     appendln("コマンドの引数の数が一致しません。`!help`コマンドも必要に応じてご確認ください。")
                                     append("実行例: `${subscription.primaryCommandSyntax} ${subscription.arguments.joinToString(" ") { "<$it>" }}`")
@@ -132,7 +214,7 @@ object SubscriptionClient {
                     !subscription.satisfyCommandConditionOfWhileInAnyVoiceChannel(message.member?.voiceState) -> {
                         commandEvent.reply {
                             embed {
-                                title("コマンドエラー: `$text`")
+                                title("コマンドエラー: `${commandEvent.command.primaryCommandSyntax}`")
                                 description { "このコマンドはボイスチャンネルに参加中のみ実行できます。" }
                                 color(HexColor.Bad)
                                 timestamp()
@@ -144,7 +226,7 @@ object SubscriptionClient {
                     !subscription.satisfyCommandConditionOfWhileInSameVoiceChannel(message.member) -> {
                         commandEvent.reply {
                             embed {
-                                title("コマンドエラー: `$text`")
+                                title("コマンドエラー: `${commandEvent.command.primaryCommandSyntax}`")
                                 description { "このコマンドはGLaDOSと同じボイスチャンネルに参加中のみ実行できます。" }
                                 color(HexColor.Bad)
                                 timestamp()
@@ -157,7 +239,7 @@ object SubscriptionClient {
                         if (event.channelType == ChannelType.TEXT) {
                             commandEvent.reply {
                                 embed {
-                                    title("コマンドエラー: `$text`")
+                                    title("コマンドエラー: `${commandEvent.command.primaryCommandSyntax}`")
                                     description { "このコマンドは`${event.guild.name}`の管理者ロールが付与されているメンバーのみが実行できます。判定に問題がある場合はサーバのオーナーにご連絡ください。" }
                                     color(HexColor.Bad)
                                     timestamp()
@@ -168,7 +250,7 @@ object SubscriptionClient {
                         } else {
                             commandEvent.reply {
                                 embed {
-                                    title("コマンドエラー: `$text`")
+                                    title("コマンドエラー: `${commandEvent.command.primaryCommandSyntax}`")
                                     description { "このコマンドは管理者ロールが必要であるため, DMでは実行できません。" }
                                     color(HexColor.Bad)
                                     timestamp()
@@ -181,7 +263,7 @@ object SubscriptionClient {
                     !subscription.satisfyCommandPermissionOfOwnerOnly(event) -> {
                         commandEvent.reply {
                             embed {
-                                title("コマンドエラー: `$text`")
+                                title("コマンドエラー: `${commandEvent.command.primaryCommandSyntax}`")
                                 description { "このコマンドはGLaDOSのオーナーのみが実行できます。" }
                                 color(HexColor.Bad)
                                 timestamp()
@@ -192,7 +274,8 @@ object SubscriptionClient {
                     }
                     else -> {
                         launch {
-                            subscription.invoke(event.guild, commandEvent)
+                            subscription.invoke(commandEvent)
+                            subscription.logger.trace { "実行されました。(${event.guild?.name})" }
                         }
                     }
                 }
@@ -201,6 +284,10 @@ object SubscriptionClient {
 
         private fun Subscription.Command.satisfyChannelTypeRequirement(type: ChannelType): Boolean {
             return type in targetChannelType.types
+        }
+
+        private fun Subscription.Command.satisfyBotChannelRequirement(channel: MessageChannel): Boolean {
+            return targetChannelType != Plugin.Command.TargetChannelType.BotChannel || (channel is TextChannel && config.forGuild(channel.guild)?.textChannel("bot") == channel)
         }
 
         private fun Subscription.Command.parseArgs(text: String): String? {
@@ -241,14 +328,38 @@ object SubscriptionClient {
         private fun Subscription.Command.satisfyCommandPermissionOfAdminOnly(event: net.dv8tion.jda.core.events.Event): Boolean {
             val isAdmin = when (event) {
                 is MessageReceivedEvent -> {
-                    event.member?.isAdmin()
+                    event.member?.isAdmin() ?: event.author.isGLaDOSOwner()
                 }
                 is MessageUpdateEvent -> {
-                    event.member?.isAdmin()
+                    event.member?.isAdmin() ?: event.author.isGLaDOSOwner()
                 }
                 else -> null
             } ?: false
             return permissionPolicy != Plugin.Command.PermissionPolicy.AdminOnly || isAdmin
+        }
+
+        private fun Subscription.Command.satisfyCommandPermissionOfMainGuildAdminOnly(event: net.dv8tion.jda.core.events.Event): Boolean {
+            val guild = config.forGuild(
+                when (event) {
+                    is MessageReceivedEvent -> {
+                        event.guild
+                    }
+                    is MessageUpdateEvent -> {
+                        event.guild
+                    }
+                    else -> null
+                }
+            )
+            val isAdmin = when (event) {
+                is MessageReceivedEvent -> {
+                    event.member?.isAdmin() ?: event.author.isGLaDOSOwner()
+                }
+                is MessageUpdateEvent -> {
+                    event.member?.isAdmin() ?: event.author.isGLaDOSOwner()
+                }
+                else -> null
+            } ?: false
+            return permissionPolicy != Plugin.Command.PermissionPolicy.MainGuildAdminOnly || (guild != null && guild.isMain && isAdmin)
         }
 
         private fun Subscription.Command.satisfyCommandPermissionOfOwnerOnly(event: net.dv8tion.jda.core.events.Event): Boolean {
@@ -266,13 +377,16 @@ object SubscriptionClient {
     }
 
     object Loop: Client<Plugin.Loop, Subscription.Loop>(), EventListener {
-        @SubscribeEvent fun onReady(event: ReadyEvent) {
+        @Suppress("UNUSED_PARAMETER")
+        @SubscribeEvent
+        fun onReady(event: ReadyEvent) {
             launch {
-                for (it in subscriptions) {
+                for (it in activeSubscriptions) {
                     launch {
                         while (isActive) {
                             try {
-                                it.invoke(null)
+                                it.invoke()
+                                it.logger.trace { "実行されました。" }
                             } catch (e: CancellationException) {
                                 break
                             }
@@ -284,17 +398,19 @@ object SubscriptionClient {
                             }
                         }
 
-                        it.logger.info { "終了しました。 ($event)" }
+                        it.logger.trace { "終了しました。" }
                     }
 
-                    it.logger.info { "開始されました。 ($event)" }
+                    it.logger.trace { "開始しました。" }
                 }
             }
         }
     }
 
     object Schedule: Client<Plugin.Schedule, Subscription.Schedule>(), EventListener {
-        @SubscribeEvent fun onReady(event: ReadyEvent) {
+        @Suppress("UNUSED_PARAMETER")
+        @SubscribeEvent
+        fun onReady(event: ReadyEvent) {
             launch {
                 while (isActive) {
                     try {
@@ -302,11 +418,12 @@ object SubscriptionClient {
                         delay(60000L - calendar.get(Calendar.SECOND) * 1000L - calendar.get(Calendar.MILLISECOND))
 
                         val newCalendar = Calendar.getInstance()
-                        subscriptions.filter {
+                        activeSubscriptions.filter {
                             it.matches(newCalendar)
                         }.forEach {
                             launch {
-                                it.invoke(null)
+                                it.invoke()
+                                it.logger.trace { "実行されました。" }
                             }
                         }
 
@@ -316,31 +433,41 @@ object SubscriptionClient {
                     }
                 }
 
-                logger.info { "ScheduleSubscriptionClient が終了しました。 ($event)" }
+                logger.trace { "終了しました。" }
             }
 
-            logger.info { "ScheduleSubscriptionClient が開始されました。 ($event)" }
+            logger.trace { "開始しました。" }
         }
     }
 
     class AudioEvent private constructor(private val guildPlayer: GuildPlayer): Client<Plugin.Event, Subscription.Event>(), AudioEventListener {
         companion object {
-            val subscriptions = CopyOnWriteArrayList<Subscription.Event>()
+            private val subscriptionsMutex = Mutex()
+            private val subscriptions = mutableListOf<Subscription.Event>()
+
+            operator fun plusAssign(subscription: Subscription.Event) {
+                GlobalScope.launch(dispatcher) {
+                    subscriptionsMutex.withLock {
+                        subscriptions += subscription
+                    }
+                }
+            }
 
             fun create(guildPlayer: GuildPlayer): AudioEvent {
                 return SubscriptionClient.AudioEvent(guildPlayer).also {
-                    it.subscriptions += AudioEvent.subscriptions
-                    it.sort()
+                    it += AudioEvent.subscriptions
+                    it.sortByPriority()
                 }
             }
         }
 
         private fun runEvent(vararg args: Any) {
-            subscriptions.filter {
+            activeSubscriptions.filter {
                 it.matchParameters(*args)
             }.forEach {
                 launch {
-                    it.invoke(guildPlayer.guild, *args)
+                    it.invoke(*args)
+                    it.logger.trace { "実行されました。(${guildPlayer.guild.name})" }
                 }
             }
         }
@@ -360,22 +487,32 @@ object SubscriptionClient {
 
     class ConnectionEvent private constructor(val guild: Guild): Client<Plugin.Event, Subscription.Event>(), ConnectionListener {
         companion object {
-            val subscriptions = CopyOnWriteArrayList<Subscription.Event>()
+            private val subscriptionsMutex = Mutex()
+            private val subscriptions = mutableListOf<Subscription.Event>()
+
+            operator fun plusAssign(subscription: Subscription.Event) {
+                GlobalScope.launch(dispatcher) {
+                    subscriptionsMutex.withLock {
+                        subscriptions += subscription
+                    }
+                }
+            }
 
             fun create(guild: Guild): ConnectionEvent {
                 return SubscriptionClient.ConnectionEvent(guild).also {
-                    it.subscriptions += ConnectionEvent.subscriptions
-                    it.sort()
+                    it += ConnectionEvent.subscriptions
+                    it.sortByPriority()
                 }
             }
         }
 
         private fun runEvent(vararg args: Any) {
-            subscriptions.filter {
+            activeSubscriptions.filter {
                 it.matchParameters(*args)
             }.forEach {
                 launch {
-                    it.invoke(guild, *args)
+                    it.invoke(*args)
+                    it.logger.trace { "実行されました。(${guild.name})" }
                 }
             }
         }
@@ -399,5 +536,393 @@ object SubscriptionClient {
         override fun onUserSpeaking(user: User, speaking: Boolean, soundshare: Boolean) {
             runEvent(guild, user, speaking, soundshare)
         }
+    }
+
+    object Tweetstorm: Client<Plugin.Tweetstorm, Subscription.Tweetstorm>(), EventListener {
+        @Suppress("UNUSED_PARAMETER")
+        @SubscribeEvent
+        fun onReady(event: ReadyEvent) {
+            activeSubscriptions.flatMap { it.accounts }.distinct().forEach { account ->
+                launch {
+                    while (true) {
+                        try {
+                            @Suppress("DEPRECATION") account.client.use {
+                                it.stream.user().await().listen(createListener(account)).startBlocking(autoReconnect = false)
+                            }
+                        } catch (e: CancellationException) {
+                            break
+                        } catch (e: Throwable) {
+                            logger.error(e) { "例外が発生しました。(@${account.user.screenName})" }
+                        }
+
+                        try {
+                            delay(5000)
+                        } catch (e: CancellationException) {
+                            break
+                        }
+                    }
+
+                    logger.trace { "終了しました。(@${account.user.screenName})" }
+                }
+
+                logger.trace { "開始しました。(@${account.user.screenName})" }
+            }
+        }
+
+        private fun createListener(account: GLaDOSConfig.Accounts.TwitterAccount) = object: UserStreamListener {
+            override suspend fun onConnect() {
+                runEvent(Plugin.Tweetstorm.ConnectEvent(account))
+
+                logger.info { "Tweetstorm (@${account.user.screenName}) が開始されました。" }
+            }
+
+            override suspend fun onDisconnect() {
+                runEvent(Plugin.Tweetstorm.DisconnectEvent(account))
+
+                logger.warn { "Tweetstorm (@${account.user.screenName}) から切断されました。" }
+            }
+
+            override suspend fun onStatus(status: Status) {
+                runEvent(Plugin.Tweetstorm.StatusEvent(account, status))
+            }
+
+            override suspend fun onDirectMessage(message: DirectMessage) {
+                runEvent(Plugin.Tweetstorm.DirectMessageEvent(account, message))
+            }
+
+            override suspend fun onAnyEvent(event: UserStreamEvent) {
+                runEvent(Plugin.Tweetstorm.StreamEvent(account, event))
+            }
+
+            override suspend fun onAnyStatusEvent(event: UserStreamStatusEvent) {
+                runEvent(Plugin.Tweetstorm.StreamStatusEvent(account, event))
+            }
+
+            override suspend fun onFavorite(event: UserStreamStatusEvent) {
+                runEvent(Plugin.Tweetstorm.FavoriteEvent(account, event))
+            }
+
+            override suspend fun onUnfavorite(event: UserStreamStatusEvent) {
+                runEvent(Plugin.Tweetstorm.UnfavoriteEvent(account, event))
+            }
+
+            override suspend fun onFavoritedRetweet(event: UserStreamStatusEvent) {
+                runEvent(Plugin.Tweetstorm.FavoritedRetweetEvent(account, event))
+            }
+
+            override suspend fun onRetweetedRetweet(event: UserStreamStatusEvent) {
+                runEvent(Plugin.Tweetstorm.RetweetedRetweetEvent(account, event))
+            }
+
+            override suspend fun onQuotedTweet(event: UserStreamStatusEvent) {
+                runEvent(Plugin.Tweetstorm.QuotedTweetEvent(account, event))
+            }
+
+            override suspend fun onAnyUserEvent(event: UserStreamUserEvent) {
+                runEvent(Plugin.Tweetstorm.StreamUserEvent(account, event))
+            }
+
+            override suspend fun onFollow(event: UserStreamUserEvent) {
+                runEvent(Plugin.Tweetstorm.FollowEvent(account, event))
+            }
+
+            override suspend fun onUnfollow(event: UserStreamUserEvent) {
+                runEvent(Plugin.Tweetstorm.UnfollowEvent(account, event))
+            }
+
+            override suspend fun onMute(event: UserStreamUserEvent) {
+                runEvent(Plugin.Tweetstorm.MuteEvent(account, event))
+            }
+
+            override suspend fun onUnmute(event: UserStreamUserEvent) {
+                runEvent(Plugin.Tweetstorm.UnmuteEvent(account, event))
+            }
+
+            override suspend fun onBlock(event: UserStreamUserEvent) {
+                runEvent(Plugin.Tweetstorm.BlockEvent(account, event))
+            }
+
+            override suspend fun onUnblock(event: UserStreamUserEvent) {
+                runEvent(Plugin.Tweetstorm.UnblockEvent(account, event))
+            }
+
+            override suspend fun onUserUpdate(event: UserStreamUserEvent) {
+                runEvent(Plugin.Tweetstorm.UserUpdateEvent(account, event))
+            }
+
+            override suspend fun onAnyListEvent(event: UserStreamListEvent) {
+                runEvent(Plugin.Tweetstorm.StreamListEvent(account, event))
+            }
+
+            override suspend fun onListCreated(event: UserStreamListEvent) {
+                runEvent(Plugin.Tweetstorm.ListCreatedEvent(account, event))
+            }
+
+            override suspend fun onListDestroyed(event: UserStreamListEvent) {
+                runEvent(Plugin.Tweetstorm.ListDestroyedEvent(account, event))
+            }
+
+            override suspend fun onListMemberAdded(event: UserStreamListEvent) {
+                runEvent(Plugin.Tweetstorm.ListMemberAddedEvent(account, event))
+            }
+
+            override suspend fun onListMemberRemoved(event: UserStreamListEvent) {
+                runEvent(Plugin.Tweetstorm.ListMemberRemovedEvent(account, event))
+            }
+
+            override suspend fun onListUpdated(event: UserStreamListEvent) {
+                runEvent(Plugin.Tweetstorm.ListUpdatedEvent(account, event))
+            }
+
+            override suspend fun onListUserSubscribed(event: UserStreamListEvent) {
+                runEvent(Plugin.Tweetstorm.ListUserSubscribedEvent(account, event))
+            }
+
+            override suspend fun onListUserUnsubscribed(event: UserStreamListEvent) {
+                runEvent(Plugin.Tweetstorm.ListUserUnsubscribedEvent(account, event))
+            }
+
+            override suspend fun onFriends(friends: UserStreamFriends) {
+                runEvent(Plugin.Tweetstorm.FriendsEvent(account, friends))
+            }
+
+            override suspend fun onDelete(delete: StreamDelete) {
+                runEvent(Plugin.Tweetstorm.DeleteEvent(account, delete))
+            }
+
+            override suspend fun onDisconnectMessage(disconnect: UserStreamDisconnect) {
+                runEvent(Plugin.Tweetstorm.DisconnectMessageEvent(account, disconnect))
+            }
+
+            override suspend fun onLimit(limit: UserStreamLimit) {
+                runEvent(Plugin.Tweetstorm.LimitEvent(account, limit))
+            }
+
+            override suspend fun onScrubGeo(scrubGeo: UserStreamScrubGeo) {
+                runEvent(Plugin.Tweetstorm.ScrubGeoEvent(account, scrubGeo))
+            }
+
+            override suspend fun onStatusWithheld(withheld: UserStreamStatusWithheld) {
+                runEvent(Plugin.Tweetstorm.StatusWithheldEvent(account, withheld))
+            }
+
+            override suspend fun onUserWithheld(withheld: UserStreamUserWithheld) {
+                runEvent(Plugin.Tweetstorm.UserWithheldEvent(account, withheld))
+            }
+
+            override suspend fun onWarning(warning: UserStreamWarning) {
+                runEvent(Plugin.Tweetstorm.WarningEvent(account, warning))
+            }
+
+            override suspend fun onHeartbeat() {
+                runEvent(Plugin.Tweetstorm.HeartbeatEvent(account))
+            }
+
+            override suspend fun onLength(length: Int) {
+                runEvent(Plugin.Tweetstorm.LengthEvent(account, length))
+            }
+
+            override suspend fun onAnyJson(json: JsonObject) {
+                runEvent(Plugin.Tweetstorm.AnyJsonEvent(account, json))
+            }
+
+            override suspend fun onUnhandledJson(json: JsonObject) {
+                runEvent(Plugin.Tweetstorm.UnhandledJsonEvent(account, json))
+            }
+
+            override suspend fun onUnknownData(data: String) {
+                runEvent(Plugin.Tweetstorm.UnknownDataEvent(account, data))
+            }
+
+            override suspend fun onRawData(data: String) {
+                runEvent(Plugin.Tweetstorm.RawDataEvent(account, data))
+            }
+
+            private fun runEvent(event: Plugin.Tweetstorm.Event) {
+                activeSubscriptions.filter { event.account in it.accounts && it.matchParameters(event) }.forEach {
+                    launch {
+                        it.invoke(event)
+                        it.logger.trace { "実行されました。(@${event.account.user.screenName})" }
+                    }
+                }
+            }
+        }
+    }
+
+    object Web: EventListener {
+        private val logger = SlackLogger("GLaDOS.SubscriptionClient.${javaClass.simpleName}")
+
+        @Suppress("UNUSED_PARAMETER")
+        @SubscribeEvent
+        fun onReady(event: ReadyEvent) {
+            Page.sortByPriority()
+            ErrorPage.sortByPriority()
+            Session.sortByPriority()
+
+            embeddedServer(Netty, config.web.port, config.web.host) {
+                install(XForwardedHeaderSupport)
+                install(AutoHeadResponse)
+                install(DefaultHeaders) {
+                    header(HttpHeaders.Server, "GLaDOS-bot")
+                    header("X-Powered-By", "GLaDOS-bot (+https://github.com/NephyProject/GLaDOS-bot)")
+                }
+                install(StatusPages) {
+                    exception<Exception> { e ->
+                        logger.error(e) { "Internal server error occurred." }
+                        call.respond(HttpStatusCode.InternalServerError)
+                    }
+
+                    for (status in ErrorPage.activeSubscriptions.flatMap { it.statuses }.distinct()) {
+                        status(status) {
+                            val subscription = ErrorPage.activeSubscriptions.firstOrNull { status in it.statuses && (it.domain == null || it.domain == call.request.effectiveHost) } ?: return@status call.respond(status)
+
+                            val accessEvent = Plugin.Web.AccessEvent(this, null, emptyMap())
+                            subscription.invoke(accessEvent, status)
+                        }
+                    }
+                }
+                install(CachingHeaders) {
+                    options {
+                        when (it.contentType?.withoutParameters()) {
+                            // コンテンツ
+                            ContentType.Text.Html, ContentType.Text.Plain, ContentType.Application.Json, ContentType.Text.Xml -> {
+                                null
+                            }
+                            // ページアセット
+                            ContentType.Application.JavaScript, ContentType.Text.CSS, ContentType.Application.Navimap -> {
+                                null  // CachingOptions(CacheControl.MaxAge(60 * 60 * 24 * 7))
+                            }
+                            // メディア
+                            ContentType.Image.PNG, ContentType.Image.JPEG, ContentType.Image.GIF, ContentType.Image.SVG, ContentType.Image.XIcon, ContentType.Audio.OGG -> {
+                                null  // CachingOptions(CacheControl.MaxAge(60 * 60 * 24 * 14))
+                            }
+                            // フォント
+                            ContentType.Application.FontOtf, ContentType.Application.FontWoff, ContentType.Application.FontWoff2 -> {
+                                null  // CachingOptions(CacheControl.MaxAge(60 * 60 * 24 * 21))
+                            }
+                            ContentType.Application.OctetStream -> {
+                                null  // CachingOptions(CacheControl.MaxAge(60 * 60 * 6))
+                            }
+                            null -> null
+                            else -> {
+                                logger.warn { "キャッシュが未定義のMimeTypeを検出しました: ${it.contentType?.withoutParameters()}" }
+                                null
+                            }
+                        }
+                    }
+                }
+                install(Web.Feature)
+                install(Sessions) {
+                    runBlocking {
+                        for (subscription in Session.activeSubscriptions) {
+                            cookie(subscription.sessionName, subscription.sessionClass, SessionStorageMemory()) {
+                                subscription.invoke(this)
+                            }
+                        }
+                    }
+                }
+                install(Routing) {
+                    get("/sitemap.xml") {
+                        val allRouting = "all" in call.parameters
+                        call.respondText(ContentType.Text.Xml) {
+                            buildString {
+                                appendln("<?xml version=\"1.0\" encoding=\"UTF-8\"?>")
+                                appendln("<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">")
+                                for (page in Page.activeSubscriptions.filter { allRouting || (it.domain == null || it.domain == call.request.origin.host) && !it.banRobots && it.pathType == Plugin.Web.PathType.Normal }) {
+                                    appendln("    <url>")
+                                    appendln("        <loc>${call.request.origin.scheme}://${call.request.origin.host}${page.path}</loc>")
+                                    appendln("        <changefreq>${page.updateFrequency.name.toLowerCase()}</changefreq>")
+                                    appendln(
+                                        "        <priority>${when (page.priority) {
+                                            Plugin.Priority.Highest -> "1.0"
+                                            Plugin.Priority.Higher -> "0.8"
+                                            Plugin.Priority.High -> "0.7"
+                                            Plugin.Priority.Normal -> "0.5"
+                                            Plugin.Priority.Low -> "0.3"
+                                            Plugin.Priority.Lower -> "0.2"
+                                            Plugin.Priority.Lowest -> "0.1"
+                                        }}</priority>"
+                                    )
+                                    appendln("    </url>")
+                                }
+                                appendln("</urlset>")
+                            }
+                        }
+                    }
+
+                    get("/robots.txt") {
+                        call.respondText(ContentType.Text.Plain) {
+                            buildString {
+                                Page.activeSubscriptions.filter { (it.domain == null || it.domain == call.request.origin.host) && it.banRobots && it.pathType == Plugin.Web.PathType.Normal }.forEach {
+                                    appendln("User-agent: *")
+                                    appendln("Disallow: ${it.path}")
+                                }
+                                appendln("User-agent: *")
+                                appendln("Sitemap: /sitemap.xml")
+                            }
+                        }
+                    }
+                }
+            }.start(wait = false)
+        }
+
+        private object Feature: ApplicationFeature<ApplicationCallPipeline, Feature.Configuration, Feature.DynamicResolver> {
+            override val key = AttributeKey<DynamicResolver>("DynamicResolver")
+
+            override fun install(pipeline: ApplicationCallPipeline, configure: Configuration.() -> Unit): DynamicResolver {
+                return DynamicResolver.apply {
+                    pipeline.intercept(ApplicationCallPipeline.Call) {
+                        handleResources()
+                        handleRequest()
+                    }
+                }
+            }
+
+            private object Configuration
+
+            object DynamicResolver {
+                private val accessLogger = SlackLogger("GLaDOS.Web.Access", channelName = "#web-access")
+                private val accessStaticLogger = SlackLogger("GLaDOS.Web.AccessStatic", channelName = "#web-access-static")
+
+                suspend fun PipelineContext<Unit, ApplicationCall>.handleResources() {
+                    val path = call.request.path()
+                    if (config.web.staticResourcePatterns.any { it.containsMatchIn(path) }) {
+                        val file = resourcePath("static", path.removePrefix("/")).toFile()
+                        if (!file.exists()) {
+                            return
+                        }
+
+                        call.respondFile(file)
+                        callLogging(accessStaticLogger)
+                    }
+                }
+
+                suspend fun PipelineContext<Unit, ApplicationCall>.handleRequest() {
+                    val routing = Page.activeSubscriptions.find { it.canHandle(call) } ?: return
+                    val event = routing.makeEvent(this)
+
+                    // TODO: Error handling
+                    routing.invoke(event)
+                    callLogging(accessLogger)
+                }
+
+                private fun PipelineContext<Unit, ApplicationCall>.callLogging(logger: SlackLogger) {
+                    val httpStatus = call.response.status() ?: HttpStatusCode.OK
+                    val userAgent = call.request.userAgent().orEmpty()
+                    val remoteHost = call.request.origin.remoteHost
+                    if (config.web.ignoreUserAgents.any { it in userAgent } || config.web.ignoreIpAddressRanges.any { it in remoteHost }) {
+                        return
+                    }
+
+                    logger.info { "${httpStatus.value} ${httpStatus.description}: ${call.request.origin.version} ${call.request.origin.method.value} ${call.request.url}\n<- $remoteHost ($userAgent)" }
+                }
+            }
+        }
+
+        object Page: Client<Plugin.Web.Page, Subscription.Web.Page>()
+
+        object ErrorPage: Client<Plugin.Web.ErrorPage, Subscription.Web.ErrorPage>()
+
+        object Session: Client<Plugin.Web.Session, Subscription.Web.Session>()
     }
 }

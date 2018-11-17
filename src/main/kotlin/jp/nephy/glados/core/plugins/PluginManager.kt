@@ -1,6 +1,8 @@
 package jp.nephy.glados.core.plugins
 
-import jp.nephy.glados.core.Logger
+import jp.nephy.glados.config
+import jp.nephy.glados.core.SlackLogger
+import jp.nephy.glados.core.extensions.round
 import jp.nephy.glados.dispatcher
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -10,50 +12,39 @@ import java.nio.file.*
 import java.nio.file.attribute.BasicFileAttributes
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
-import kotlin.reflect.full.createInstance
-import kotlin.reflect.full.createType
-import kotlin.reflect.full.findAnnotation
-import kotlin.reflect.full.valueParameters
+import kotlin.reflect.KVisibility
+import kotlin.reflect.full.*
 import kotlin.reflect.jvm.kotlinFunction
-import kotlin.system.measureTimeMillis
+import kotlin.system.measureNanoTime
 
 object PluginManager {
-    private const val packagePrefix = "jp.nephy.glados.plugins"
-    private val logger = Logger("GLaDOS.PluginManager", false)
+    private const val nano = 1000000.0
+    private val logger = SlackLogger("GLaDOS.PluginManager")
 
     suspend fun loadAll() {
-        val loadingTimeMs = measureTimeMillis {
-            FeatureClassLoader.classes<Plugin>().map {
-                GlobalScope.launch(dispatcher) {
-                    val instance = try {
-                        it.objectInstance ?: it.createInstance()
-                    } catch (e: Exception) {
-                        logger.error(e) { "${it.qualifiedName} のインスタンスの作成に失敗しました。" }
-                        return@launch
+        val loadingTimeNano = measureNanoTime {
+            for (packagePrefix in config.pluginsPackagePrefixes) {
+                FeatureClassLoader(packagePrefix).classes<Plugin>().map {
+                    GlobalScope.launch(dispatcher) {
+                        try {
+                            val instance = it.objectInstance ?: it.createInstance().also {
+                                logger.warn { "${it.fullname} は object宣言ではなく class宣言されています。object宣言が推奨されています。" }
+                            }
+                            ClassLoader(instance).load()
+                        } catch (e: Throwable) {
+                            logger.error(e.cause ?: e) { "${it.qualifiedName} のインスタンスの作成に失敗しました。" }
+                        }
                     }
-
-                    ClassLoader(instance).load()
+                }.forEach {
+                    it.join()
                 }
-            }.forEach {
-                it.join()
             }
-
-            SubscriptionClient.ListenerEvent.sort()
-            SubscriptionClient.Command.sort()
-            SubscriptionClient.Loop.sort()
-            SubscriptionClient.Schedule.sort()
         }
 
-        logger.info { "${loadingTimeMs}ms で Plugin のロードを完了しました。" }
+        logger.info { "${(loadingTimeNano / nano).round(3)} ms で Plugin のロードを完了しました。" }
     }
 
     private class ClassLoader(private val instance: Plugin) {
-        companion object {
-            private val listenerAdapterMethods = EventModel::class.java.declaredMethods.filter { it.isAnnotationPresent(EventModel.FromListenerAdapter::class.java) }.mapNotNull { it.kotlinFunction }
-            private val connectionListenerMethods = EventModel::class.java.declaredMethods.filter { it.isAnnotationPresent(EventModel.FromConnectionListener::class.java) }.mapNotNull { it.kotlinFunction }
-            private val audioEventAdapterMethods = EventModel::class.java.declaredMethods.filter { it.isAnnotationPresent(EventModel.FromAudioEventAdapter::class.java) }.mapNotNull { it.kotlinFunction }
-        }
-
         fun load() {
             instance.javaClass.declaredMethods.asSequence().filter { !it.isDefault }.mapNotNull { it.kotlinFunction }.forEach {
                 FunctionLoader(it).load()
@@ -61,19 +52,8 @@ object PluginManager {
         }
 
         private inner class FunctionLoader(private val function: KFunction<*>) {
-            private val valueParameters = function.valueParameters
-
             fun load() {
-                val annotation = if (function.annotations.isNotEmpty()) {
-                    function.findAnnotation<Plugin.Command>()
-                            ?: function.findAnnotation<Plugin.Loop>()
-                            ?: function.findAnnotation<Plugin.Schedule>()
-                            ?: function.findAnnotation<Plugin.Event>()
-                } else {
-                    null
-                }
-
-                when (annotation) {
+                when (val annotation = function.annotations.firstOrNull()) {
                     is Plugin.Command -> {
                         loadCommand(annotation)
                     }
@@ -83,16 +63,38 @@ object PluginManager {
                     is Plugin.Schedule -> {
                         loadSchedule(annotation)
                     }
+                    is Plugin.Tweetstorm -> {
+                        loadTweetstorm(annotation)
+                    }
+                    is Plugin.Web.Page -> {
+                        loadWebPage(annotation)
+                    }
+                    is Plugin.Web.ErrorPage -> {
+                        loadWebErrorPage(annotation)
+                    }
+                    is Plugin.Web.Session -> {
+                        loadWebSession(annotation)
+                    }
                     else -> {
                         loadEventListener(annotation as? Plugin.Event)
                     }
                 }
             }
 
+            private fun KFunction<*>.isPublic(): Boolean {
+                return (visibility == KVisibility.PUBLIC).also {
+                    if (!it) {
+                        logger.warn { "${instance.fullname}#$name は public 宣言されていません。スキップします。" }
+                    }
+                }
+            }
+
             private fun loadCommand(annotation: Plugin.Command) {
-                if (valueParameters.size == 1 && valueParameters.first().type == Plugin.Command.Event::class.createType()) {
-                    SubscriptionClient.Command.subscriptions += Subscription.Command(annotation, instance, function).also {
-                        logger.info { "Command: ${it.fullname} をロードしました。" }
+                if (function.valueParameters.size == 1 && function.valueParameters.first().type == Plugin.Command.Event::class.createType()) {
+                    if (function.isPublic()) {
+                        SubscriptionClient.Command += Subscription.Command(annotation, instance, function).also {
+                            logger.trace { "Command: ${it.fullname} をロードしました。" }
+                        }
                     }
                 } else {
                     logger.warn { "[${instance.name}#${function.name}] @Command が付与されていますが, 引数が [Plugin.Command.Event] ではありません。スキップします。" }
@@ -100,9 +102,11 @@ object PluginManager {
             }
 
             private fun loadLoop(annotation: Plugin.Loop) {
-                if (valueParameters.isEmpty()) {
-                    SubscriptionClient.Loop.subscriptions += Subscription.Loop(annotation, instance, function).also {
-                        logger.info { "Loop: ${it.fullname} をロードしました。" }
+                if (function.valueParameters.isEmpty()) {
+                    if (function.isPublic()) {
+                        SubscriptionClient.Loop += Subscription.Loop(annotation, instance, function).also {
+                            logger.trace { "Loop: ${it.fullname} をロードしました。" }
+                        }
                     }
                 } else {
                     logger.warn { "[${instance.name}#${function.name}] @Loop が付与されていますが, 引数の数は 0 である必要があります。スキップします。" }
@@ -110,38 +114,94 @@ object PluginManager {
             }
 
             private fun loadSchedule(annotation: Plugin.Schedule) {
-                if (valueParameters.isEmpty()) {
-                    SubscriptionClient.Schedule.subscriptions += Subscription.Schedule(annotation, instance, function).also {
-                        logger.info { "Schedule: ${it.fullname} をロードしました。" }
+                if (function.valueParameters.isEmpty()) {
+                    if (function.isPublic()) {
+                        SubscriptionClient.Schedule += Subscription.Schedule(annotation, instance, function).also {
+                            logger.trace { "Schedule: ${it.fullname} をロードしました。" }
+                        }
                     }
                 } else {
                     logger.warn { "[${instance.name}#${function.name}] @Schedule が付与されていますが, 引数の数は 0 である必要があります。スキップします。" }
                 }
             }
 
+            private fun loadTweetstorm(annotation: Plugin.Tweetstorm) {
+                if (function.satisfies<EventModel.FromTweetstorm>()) {
+                    if (function.isPublic()) {
+                        SubscriptionClient.Tweetstorm += Subscription.Tweetstorm(annotation, instance, function).also {
+                            logger.trace { "TweetstormEvent: ${it.fullname} をロードしました。" }
+                        }
+                    }
+                } else {
+                    logger.warn { "[${instance.name}#${function.name}] @Tweetstorm が付与されていますが, 引数が一致していません。スキップします。" }
+                }
+            }
+
+            private fun loadWebPage(annotation: Plugin.Web.Page) {
+                if (function.satisfies<EventModel.FromWebPage>()) {
+                    if (function.isPublic()) {
+                        SubscriptionClient.Web.Page += Subscription.Web.Page(annotation, instance, function).also {
+                            logger.trace { "WebPage: ${it.fullname} をロードしました。" }
+                        }
+                    }
+                } else {
+                    logger.warn { "[${instance.name}#${function.name}] @Web.Page が付与されていますが, 引数が一致していません。スキップします。" }
+                }
+            }
+
+            private fun loadWebErrorPage(annotation: Plugin.Web.ErrorPage) {
+                if (function.satisfies<EventModel.FromWebErrorPage>()) {
+                    if (function.isPublic()) {
+                        SubscriptionClient.Web.ErrorPage += Subscription.Web.ErrorPage(annotation, instance, function).also {
+                            logger.trace { "WebErrorPage: ${it.fullname} をロードしました。" }
+                        }
+                    }
+                } else {
+                    logger.warn { "[${instance.name}#${function.name}] @Web.ErrorPage が付与されていますが, 引数が一致していません。スキップします。" }
+                }
+            }
+
+            private fun loadWebSession(annotation: Plugin.Web.Session) {
+                if (function.satisfies<EventModel.FromWebSession>()) {
+                    if (function.isPublic()) {
+                        SubscriptionClient.Web.Session += Subscription.Web.Session(annotation, instance, function).also {
+                            logger.trace { "WebSession: ${it.fullname} をロードしました。" }
+                        }
+                    }
+                } else {
+                    logger.warn { "[${instance.name}#${function.name}] @Web.Session が付与されていますが, 引数が一致していません。スキップします。" }
+                }
+            }
+
             private fun loadEventListener(annotation: Plugin.Event?) {
                 when {
-                    function satisfies listenerAdapterMethods -> {
-                        SubscriptionClient.ListenerEvent.subscriptions += Subscription.Event(annotation ?: defaultEventAnnotation, instance, function).also {
-                            logger.info { "JDAEvent: ${it.fullname} をロードしました。" }
+                    function.satisfies<EventModel.FromListenerAdapter>() -> {
+                        if (function.isPublic()) {
+                            SubscriptionClient.ListenerEvent += Subscription.Event(annotation ?: defaultEventAnnotation, instance, function).also {
+                                logger.trace { "JDAEvent: ${it.fullname} をロードしました。" }
+                            }
                         }
                     }
-                    function satisfies connectionListenerMethods -> {
-                        SubscriptionClient.ConnectionEvent.subscriptions += Subscription.Event(annotation ?: defaultEventAnnotation, instance, function).also {
-                            logger.info { "ConnectionEvent: ${it.fullname} をロードしました。" }
+                    function.satisfies<EventModel.FromConnectionListener>() -> {
+                        if (function.isPublic()) {
+                            SubscriptionClient.ConnectionEvent += Subscription.Event(annotation ?: defaultEventAnnotation, instance, function).also {
+                                logger.trace { "ConnectionEvent: ${it.fullname} をロードしました。" }
+                            }
                         }
                     }
-                    function satisfies audioEventAdapterMethods -> {
-                        SubscriptionClient.AudioEvent.subscriptions += Subscription.Event(annotation ?: defaultEventAnnotation, instance, function).also {
-                            logger.info { "AudioEvent: ${it.fullname} をロードしました。" }
+                    function.satisfies<EventModel.FromAudioEventAdapter>() -> {
+                        if (function.isPublic()) {
+                            SubscriptionClient.AudioEvent += Subscription.Event(annotation ?: defaultEventAnnotation, instance, function).also {
+                                logger.trace { "AudioEvent: ${it.fullname} をロードしました。" }
+                            }
                         }
                     }
                 }
             }
 
-            private infix fun KFunction<*>.satisfies(originalFunctions: List<KFunction<*>>): Boolean {
-                originalFunctions.filter { it.valueParameters.size == valueParameters.size }.find { originalFunction ->
-                    originalFunction.valueParameters.zip(valueParameters).all {
+            private inline fun <reified T: Annotation> KFunction<*>.satisfies(): Boolean {
+                EventModel::class.declaredFunctions.find { originalFunction ->
+                    originalFunction.valueParameters.size == valueParameters.size && originalFunction.findAnnotation<T>() != null && originalFunction.valueParameters.zip(valueParameters).all {
                         it.first.type == it.second.type
                     }
                 } ?: return false
@@ -151,20 +211,21 @@ object PluginManager {
         }
     }
 
-    private object FeatureClassLoader {
+    private class FeatureClassLoader(private val packagePrefix: String) {
+        companion object {
+            private const val packageSeparator = '.'
+            private const val jarPathSeparator = '/'
+        }
+
         val classLoader = Thread.currentThread().contextClassLoader!!
         val classNamePattern = "([A-Za-z]+(\\d)?)\\.class".toRegex()
-        const val packageSeparator = '.'
-        const val jarPathSeparator = '/'
         val fileSystemPathSeparator = File.separatorChar
         val jarResourceName = packagePrefix.replace('.', jarPathSeparator)
         val fileSystemResourceName = packagePrefix.replace('.', fileSystemPathSeparator)
 
         @Suppress("UNCHECKED_CAST")
         inline fun <reified T: Any> classes(): Sequence<KClass<T>> {
-            val root = classLoader.getResource(fileSystemResourceName)
-                    ?: classLoader.getResource(jarResourceName)
-                    ?: return emptySequence()
+            val root = classLoader.getResource(jarResourceName) ?: classLoader.getResource(fileSystemResourceName) ?: return emptySequence()
 
             return when (root.protocol) {
                 "file" -> {
@@ -189,7 +250,9 @@ object PluginManager {
                         ClassEntry(it.name, it.name.split(jarPathSeparator).last())
                     }.loadClasses<T>(jarResourceName, jarPathSeparator)
                 }
-                else -> throw UnsupportedOperationException("Unknown procotol: ${root.protocol}")
+                else -> {
+                    throw UnsupportedOperationException("Unknown procotol: ${root.protocol}")
+                }
             }.sortedBy { it.canonicalName }.map { it.kotlin }
         }
 
@@ -197,15 +260,15 @@ object PluginManager {
 
         @Suppress("UNCHECKED_CAST")
         inline fun <reified T> Sequence<ClassEntry>.loadClasses(resourceName: String, pathSeparator: Char): Sequence<Class<T>> {
-            return filter { classNamePattern.containsMatchIn(it.filename) }
-                    .asSequence()
-                    .map { "$packagePrefix${it.path.split(resourceName).last().replace(pathSeparator, packageSeparator).removeSuffix(".class")}" }
-                    .map { classLoader.loadClass(it) }
-                    .filter { it.superclass == T::class.java }
-                    .map { it as Class<T> }
+            return filter { classNamePattern.containsMatchIn(it.filename) }.asSequence().map { "$packagePrefix${it.path.split(resourceName).last().replace(pathSeparator, packageSeparator).removeSuffix(".class")}" }.map { classLoader.loadClass(it) }.filter { it.superclass == T::class.java }
+                .map { it as Class<T> }
         }
     }
 
-    @Plugin.Event private fun getEventAnnotation() {}
+    @Plugin.Event
+    private fun getEventAnnotation() {
+        throw UnsupportedOperationException()
+    }
+
     private val defaultEventAnnotation = this::getEventAnnotation.findAnnotation<Plugin.Event>()!!
 }
