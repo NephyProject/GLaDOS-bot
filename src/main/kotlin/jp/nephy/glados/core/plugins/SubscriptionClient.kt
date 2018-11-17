@@ -872,7 +872,10 @@ object SubscriptionClient {
             override fun install(pipeline: ApplicationCallPipeline, configure: Configuration.() -> Unit): DynamicResolver {
                 return DynamicResolver.apply {
                     pipeline.intercept(ApplicationCallPipeline.Call) {
-                        handleResources()
+                        if (handleResources()) {
+                            return@intercept
+                        }
+
                         handleRequest()
                     }
                 }
@@ -884,26 +887,30 @@ object SubscriptionClient {
                 private val accessLogger = SlackLogger("GLaDOS.Web.Access", channelName = "#web-access")
                 private val accessStaticLogger = SlackLogger("GLaDOS.Web.AccessStatic", channelName = "#web-access-static")
 
-                suspend fun PipelineContext<Unit, ApplicationCall>.handleResources() {
+                suspend fun PipelineContext<Unit, ApplicationCall>.handleResources(): Boolean {
                     val path = call.request.path()
-                    if (config.web.staticResourcePatterns.any { it.containsMatchIn(path) }) {
-                        val file = resourcePath("static", path.removePrefix("/")).toFile()
-                        if (!file.exists()) {
-                            return
-                        }
-
-                        call.respondFile(file)
-                        callLogging(accessStaticLogger)
+                    if (config.web.staticResourcePatterns.none { it.containsMatchIn(path) }) {
+                        return false
                     }
+
+                    val file = resourcePath("static", path.removePrefix("/")).toFile()
+                    if (!file.exists()) {
+                        return false
+                    }
+
+                    call.respondFile(file)
+                    callLogging(accessStaticLogger)
+                    return true
                 }
 
                 suspend fun PipelineContext<Unit, ApplicationCall>.handleRequest() {
                     val routing = Page.activeSubscriptions.find { it.canHandle(call) } ?: return
                     val event = routing.makeEvent(this)
 
-                    // TODO: Error handling
-                    routing.invoke(event)
-                    callLogging(accessLogger)
+                    if (routing.invoke(event)) {
+                        callLogging(accessLogger)
+                        return
+                    }
                 }
 
                 private fun PipelineContext<Unit, ApplicationCall>.callLogging(logger: SlackLogger) {

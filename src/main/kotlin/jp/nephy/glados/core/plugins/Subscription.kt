@@ -240,7 +240,18 @@ object Subscription {
                         regexPath.matches(requestPath)
                     }
                     Plugin.Web.PathType.Pattern -> {
-                        requestPath.split("/").size == path.split("/").size
+                        val (expectPaths, actualPaths) = path.split("/") to requestPath.split("/")
+                        if (expectPaths.size != actualPaths.size) {
+                            return false
+                        }
+
+                        for ((expected, actual) in expectPaths.zip(actualPaths)) {
+                            if (!fragmentPattern.matches(expected) && expected != actual) {
+                                return false
+                            }
+                        }
+
+                        return true
                     }
                 }
             }
