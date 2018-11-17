@@ -1,10 +1,9 @@
-package jp.nephy.glados.core.api.youtubedl
+package jp.nephy.glados.core.audio.player.api.youtubedl
 
-import jp.nephy.jsonkt.parse
+import jp.nephy.jsonkt.*
 import java.io.InputStream
 import java.io.InputStreamReader
 import java.util.concurrent.TimeUnit
-
 
 class YouTubeDL(private val videoUrl: String) {
     private var cachedVideoInfo: YouTubeDLModel? = null
@@ -27,7 +26,7 @@ class YouTubeDL(private val videoUrl: String) {
                 result.parse<YouTubeDLModel>().also {
                     cachedVideoInfo = it
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 null
             }
         }

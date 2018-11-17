@@ -1,14 +1,14 @@
-package jp.nephy.glados.core.api.soundcloud
+package jp.nephy.glados.core.audio.player.api.soundcloud
 
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack
 import io.ktor.client.request.get
 import io.ktor.http.userAgent
-import jp.nephy.glados.core.api.soundcloud.param.ChartType
-import jp.nephy.glados.core.api.soundcloud.param.Genre
+import jp.nephy.glados.core.audio.player.api.soundcloud.param.ChartType
+import jp.nephy.glados.core.audio.player.api.soundcloud.param.Genre
 import jp.nephy.glados.core.audio.player.*
 import jp.nephy.glados.httpClient
-import jp.nephy.jsonkt.delegation.JsonModel
-import jp.nephy.jsonkt.parse
+import jp.nephy.jsonkt.*
+import jp.nephy.jsonkt.delegation.*
 import java.util.*
 
 class SoundCloudClient(private val clientId: String) {

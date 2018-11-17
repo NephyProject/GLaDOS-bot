@@ -1,13 +1,13 @@
-package jp.nephy.glados.core.api.niconico.model
+package jp.nephy.glados.core.audio.player.api.niconico.model
 
-import jp.nephy.jsonkt.ImmutableJsonObject
+import jp.nephy.jsonkt.*
 import jp.nephy.jsonkt.delegation.*
 
-data class SearchResult(override val json: ImmutableJsonObject): JsonModel {
+data class SearchResult(override val json: JsonObject): JsonModel {
     val data by modelList<SearchData>()  // [...]
     val meta by model<SearchMeta>()  // {...}
 
-    data class SearchData(override val json: ImmutableJsonObject): JsonModel {
+    data class SearchData(override val json: JsonObject): JsonModel {
         val categoryTags by string  // "音楽"
         val commentCounter by int  // 2827857
         val contentId by string  // "sm1097445"
@@ -19,7 +19,7 @@ data class SearchResult(override val json: ImmutableJsonObject): JsonModel {
         val viewCounter by int  // 13287007
     }
 
-    data class SearchMeta(override val json: ImmutableJsonObject): JsonModel {
+    data class SearchMeta(override val json: JsonObject): JsonModel {
         val id by string  // "b2be2ba6-6dd6-4f4b-9417-133d10a668f6"
         val status by int  // 200
         val totalCount by int  // 154303

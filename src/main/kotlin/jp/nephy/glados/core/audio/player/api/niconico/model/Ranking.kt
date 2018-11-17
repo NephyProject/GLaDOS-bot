@@ -1,4 +1,4 @@
-package jp.nephy.glados.core.api.niconico.model
+package jp.nephy.glados.core.audio.player.api.niconico.model
 
 import com.rometools.rome.feed.synd.SyndEntry
 import com.rometools.rome.feed.synd.SyndFeed

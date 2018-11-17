@@ -1,22 +1,22 @@
-package jp.nephy.glados.core.api.soundcloud
+package jp.nephy.glados.core.audio.player.api.soundcloud
 
-import jp.nephy.jsonkt.ImmutableJsonObject
+import jp.nephy.jsonkt.*
 import jp.nephy.jsonkt.delegation.*
 
 @Suppress("UNUSED")
-data class ChartModel(override val json: ImmutableJsonObject): JsonModel {
+data class ChartModel(override val json: JsonObject): JsonModel {
     val collection by modelList<Collection>()  // [...]
     val genre by string  // "soundcloud:genres:all-music"
     val kind by string  // "top"
     val lastUpdated by string("last_updated")  // "2018-03-13T06:23:53Z"
-    val nextHref by string("next_href")  // "https://api-v2.soundcloud.com/charts?genre=soundcloud%3Agenres%3Aall-music&query_urn=soundcloud%3Acharts%3A9e5b391ed3284f3c9016bf63c038bfb7&offset=20&high_tier_only=false&kind=top&limit=20"
+    val nextHref by string("next_href")
     val queryUrn by string("query_urn")  // "soundcloud:charts:9e5b391ed3284f3c9016bf63c038bfb7"
 
-    data class Collection(override val json: ImmutableJsonObject): JsonModel {
+    data class Collection(override val json: JsonObject): JsonModel {
         val score by float  // 4175197.0
         val track by model<Track>()  // {...}
 
-        data class Track(override val json: ImmutableJsonObject): JsonModel {
+        data class Track(override val json: JsonObject): JsonModel {
             val artworkUrl by nullableString("artwork_url")  // "https://i1.sndcdn.com/artworks-000306529515-38iu6a-large.jpg"
             val commentCount by int("comment_count")  // 2144
             val commentable by boolean  // true
@@ -38,7 +38,9 @@ data class ChartModel(override val json: ImmutableJsonObject): JsonModel {
             val likesCount by int("likes_count")  // 255282
             val monetizationModel by string("monetization_model")  // "NOT_APPLICABLE"
             val permalink by string  // "billy"
-            val permalinkUrl by string("permalink_url")  // "https://soundcloud.com/scumgang6ix9ine/billy"
+            val permalinkUrl by string(
+                "permalink_url"
+            )  // "https://soundcloud.com/scumgang6ix9ine/billy"
             val playbackCount by int("playback_count")  // 12331003
             val policy by string  // "ALLOW"
             val public by boolean  // true
@@ -53,10 +55,14 @@ data class ChartModel(override val json: ImmutableJsonObject): JsonModel {
             val urn by string  // "soundcloud:queue:403657665"
             val user by model<User>()  // {...}
             val userId by int("user_id")  // 307809061
-            val waveformUrl by string("waveform_url")  // "https://wis.sndcdn.com/9BWTKm0MHBrj_m.json"
+            val waveformUrl by string(
+                "waveform_url"
+            )  // "https://wis.sndcdn.com/9BWTKm0MHBrj_m.json"
 
-            data class User(override val json: ImmutableJsonObject): JsonModel {
-                val avatarUrl by string("avatar_url")  // "https://i1.sndcdn.com/avatars-000338809424-572092-large.jpg"
+            data class User(override val json: JsonObject): JsonModel {
+                val avatarUrl by string(
+                    "avatar_url"
+                )  // "https://i1.sndcdn.com/avatars-000338809424-572092-large.jpg"
                 val firstName by string("first_name")  // ""
                 val fullName by string("full_name")  // ""
                 val id by int  // 307809061
@@ -64,14 +70,16 @@ data class ChartModel(override val json: ImmutableJsonObject): JsonModel {
                 val lastModified by string("last_modified")  // "2018-02-23T20:52:14Z"
                 val lastName by string("last_name")  // ""
                 val permalink by string  // "scumgang6ix9ine"
-                val permalinkUrl by string("permalink_url")  // "https://soundcloud.com/scumgang6ix9ine"
+                val permalinkUrl by string(
+                    "permalink_url"
+                )  // "https://soundcloud.com/scumgang6ix9ine"
                 val uri by string  // "https://api.soundcloud.com/users/307809061"
                 val urn by string  // "soundcloud:users:307809061"
                 val username by string  // "6IX9INE"
                 val verified by boolean  // false
             }
 
-            data class PublisherMetadata(override val json: ImmutableJsonObject): JsonModel {
+            data class PublisherMetadata(override val json: JsonObject): JsonModel {
                 val albumTitle by string("album_title")  // "Day69"
                 val artist by string  // "6ix9ine"
                 val explicit by boolean  // true

@@ -1,10 +1,10 @@
-package jp.nephy.glados.core.api.youtubedl
+package jp.nephy.glados.core.audio.player.api.youtubedl
 
-import jp.nephy.jsonkt.ImmutableJsonObject
+import jp.nephy.jsonkt.*
 import jp.nephy.jsonkt.delegation.*
 import kotlin.math.roundToLong
 
-data class YouTubeDLModel(override val json: ImmutableJsonObject): JsonModel {
+data class YouTubeDLModel(override val json: JsonObject): JsonModel {
     val title by string
     val fulltitle by string
     val description by nullableString
@@ -23,7 +23,7 @@ data class YouTubeDLModel(override val json: ImmutableJsonObject): JsonModel {
     val formats by modelList<Format>()
     val ext by string
 
-    data class Format(override val json: ImmutableJsonObject): JsonModel {
+    data class Format(override val json: JsonObject): JsonModel {
         val abr by int  // 50
         val acodec by nullableString  // "opus"
         val container by nullableString  // "m4a_dash"
@@ -45,11 +45,11 @@ data class YouTubeDLModel(override val json: ImmutableJsonObject): JsonModel {
         val vcodec by nullableString  // "none"
         val width by int  // 256
 
-        class DownloaderOptions(override val json: ImmutableJsonObject): JsonModel {
+        class DownloaderOptions(override val json: JsonObject): JsonModel {
             val httpChunkSize by int("http_chunk_size")  // 10485760
         }
 
-        class HttpHeaders(override val json: ImmutableJsonObject): JsonModel {
+        class HttpHeaders(override val json: JsonObject): JsonModel {
             val accept by string("Accept")  // "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
             val acceptCharset by string("Accept-Charset")  // "ISO-8859-1,utf-8;q=0.7,*;q=0.7"
             val acceptEncoding by string("Accept-Encoding")  // "gzip, deflate"

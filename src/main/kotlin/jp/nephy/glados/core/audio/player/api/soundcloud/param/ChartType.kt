@@ -1,4 +1,4 @@
-package jp.nephy.glados.core.api.soundcloud.param
+package jp.nephy.glados.core.audio.player.api.soundcloud.param
 
 import jp.nephy.glados.core.extensions.messages.prompt.PromptEmoji
 
