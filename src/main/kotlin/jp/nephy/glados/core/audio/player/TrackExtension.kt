@@ -2,7 +2,7 @@ package jp.nephy.glados.core.audio.player
 
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack
 import com.sedmelluq.discord.lavaplayer.track.AudioTrackInfo
-import jp.nephy.utils.sumBy
+import jp.nephy.glados.core.extensions.sumBy
 
 val AudioTrack.remainingMillis
     get() = duration - position

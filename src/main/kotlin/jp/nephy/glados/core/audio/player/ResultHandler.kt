@@ -3,10 +3,10 @@ package jp.nephy.glados.core.audio.player
 import com.sedmelluq.discord.lavaplayer.tools.FriendlyException
 import com.sedmelluq.discord.lavaplayer.track.AudioPlaylist
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack
-import jp.nephy.glados.core.api.niconico.model.Ranking
-import jp.nephy.glados.core.api.niconico.model.SearchResult
-import jp.nephy.glados.core.api.soundcloud.ChartModel
-import jp.nephy.glados.core.api.youtubedl.YouTubeDL
+import jp.nephy.glados.core.audio.player.api.niconico.model.Ranking
+import jp.nephy.glados.core.audio.player.api.niconico.model.SearchResult
+import jp.nephy.glados.core.audio.player.api.soundcloud.ChartModel
+import jp.nephy.glados.core.audio.player.api.youtubedl.YouTubeDL
 
 interface PlayerLoadResultHandler {
     fun onLoadTrack(track: AudioTrack) {}

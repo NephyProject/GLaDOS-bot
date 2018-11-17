@@ -9,21 +9,21 @@ import com.sedmelluq.discord.lavaplayer.track.AudioPlaylist
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack
 import jp.nephy.glados.config
 import jp.nephy.glados.core.GLaDOSConfig
-import jp.nephy.glados.core.Logger
-import jp.nephy.glados.core.api.niconico.NiconicoClient
-import jp.nephy.glados.core.api.youtube.YouTubeClient
+import jp.nephy.glados.core.SlackLogger
+import jp.nephy.glados.core.audio.player.api.niconico.NiconicoClient
+import jp.nephy.glados.core.audio.player.api.youtube.YouTubeClient
 import jp.nephy.glados.core.audio.AudioReceiveHandlerImpl
 import jp.nephy.glados.core.audio.AudioSendHandlerImpl
 import jp.nephy.glados.core.audio.SilenceAudioSendHandler
-import jp.nephy.glados.core.extensions.toMilliSecondString
 import jp.nephy.glados.core.plugins.SubscriptionClient
+import jp.nephy.glados.dispatcher
 import jp.nephy.glados.secret
-import jp.nephy.utils.sumBy
+import kotlinx.coroutines.runBlocking
 import net.dv8tion.jda.core.entities.Guild
 import net.dv8tion.jda.core.entities.VoiceChannel
 import java.util.concurrent.ConcurrentHashMap
 
-private val logger = Logger("GLaDOS.Audio.GuildPlayer")
+private val logger = SlackLogger("GLaDOS.Audio.GuildPlayer")
 
 private val players = ConcurrentHashMap<Guild, GuildPlayer>()
 // TODO
@@ -35,12 +35,16 @@ val Guild.player: GuildPlayer?
 
             GuildPlayer(this, guildConfig, defaultVoiceChannel).also {
                 audioManager.isAutoReconnect = true
-                audioManager.connectionListener = SubscriptionClient.ConnectionEvent.create(this)
+                audioManager.connectionListener = runBlocking(dispatcher) {
+                    SubscriptionClient.ConnectionEvent.create(this@player)
+                }
                 audioManager.sendingHandler = SilenceAudioSendHandler {
                     // Hotfix: https://github.com/DV8FromTheWorld/JDA/issues/789
                     audioManager.sendingHandler = AudioSendHandlerImpl(it.audioPlayer)
                     audioManager.setReceivingHandler(AudioReceiveHandlerImpl(it))
-                    it.audioPlayer.addListener(SubscriptionClient.AudioEvent.create(it))
+                    it.audioPlayer.addListener(runBlocking(dispatcher) {
+                        SubscriptionClient.AudioEvent.create(it)
+                    })
                     logger.info { "[${defaultVoiceChannel.name} ($name)] 無音の送信が終了しました。" }
                 }
             }
@@ -95,7 +99,6 @@ class GuildPlayer(val guild: Guild, val guildConfig: GLaDOSConfig.GuildConfig, p
                 track.userData = TrackUserData(track, trackType)
 
                 handler.onLoadTrack(track)
-                logger.info { "[${track.sourceManager.javaClass.simpleName}] トラック \"${track.info.effectiveTitle}\" by ${track.info.author} (${track.duration.toMilliSecondString()}) をキューに追加しました。" }
             }
 
             override fun playlistLoaded(playlist: AudioPlaylist) {
@@ -108,14 +111,6 @@ class GuildPlayer(val guild: Guild, val guildConfig: GLaDOSConfig.GuildConfig, p
                 }
 
                 handler.onLoadPlaylist(playlist)
-                logger.info {
-                    buildString {
-                        appendln("[${playlist.tracks.first().sourceManager.javaClass.simpleName}] プレイリスト \"${playlist.name}\" (${playlist.tracks.size}曲, ${playlist.tracks.sumBy { it.duration }.toMilliSecondString()}) をキューに追加しました。")
-                        playlist.tracks.forEachIndexed { i, it ->
-                            appendln("#${(i + 1).toString().padEnd(playlist.tracks.size.toString().length)}: ${it.info.effectiveTitle} (${it.duration.toMilliSecondString()})")
-                        }
-                    }
-                }
             }
 
             override fun noMatches() {

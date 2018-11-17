@@ -4,16 +4,16 @@ import com.sedmelluq.discord.lavaplayer.player.AudioPlayer
 import com.sedmelluq.discord.lavaplayer.player.event.AudioEventAdapter
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack
 import com.sedmelluq.discord.lavaplayer.track.AudioTrackEndReason
-import jp.nephy.glados.core.Logger
+import jp.nephy.glados.core.SlackLogger
 import jp.nephy.glados.core.extensions.isNoOneExceptSelf
+import jp.nephy.glados.core.extensions.removeAtOrNull
+import jp.nephy.glados.core.extensions.sumBy
 import jp.nephy.glados.dispatcher
-import jp.nephy.utils.removeAtOrNull
-import jp.nephy.utils.sumBy
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import java.util.concurrent.CopyOnWriteArrayList
 
-private val logger = Logger("GLaDOS.Audio.TrackControls")
+private val logger = SlackLogger("GLaDOS.Audio.TrackControls")
 
 class TrackControls(private val guildPlayer: GuildPlayer, private val player: AudioPlayer): AudioEventAdapter() {
     private val userRequestQueue = CopyOnWriteArrayList<AudioTrack>()
