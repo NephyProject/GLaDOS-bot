@@ -22,6 +22,7 @@ import java.util.concurrent.TimeUnit
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
 import kotlin.reflect.full.callSuspend
+import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.full.isSubclassOf
 import kotlin.reflect.full.valueParameters
 import kotlin.reflect.jvm.jvmErasure
@@ -39,6 +40,8 @@ object Subscription {
         val fullname: String
             get() = "${instance.fullname}#$name"
         abstract val priority: Plugin.Priority
+        val isExperimental: Boolean
+            get() = instance.isExperimental || function.findAnnotation<Plugin.Experimental>() != null
 
         private val parameterClasses = function.valueParameters.map { it.type.jvmErasure }
         fun matchParameters(vararg classes: KClass<*>): Boolean {

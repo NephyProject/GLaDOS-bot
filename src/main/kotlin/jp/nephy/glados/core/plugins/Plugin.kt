@@ -24,6 +24,7 @@ import net.dv8tion.jda.core.events.message.MessageReceivedEvent
 import net.dv8tion.jda.core.events.message.MessageUpdateEvent
 import java.util.concurrent.TimeUnit
 import kotlin.reflect.KClass
+import kotlin.reflect.full.findAnnotation
 
 abstract class Plugin(
     pluginName: String? = null, version: String? = null, val description: String? = null
@@ -43,11 +44,17 @@ abstract class Plugin(
 
     val logger = SlackLogger("Plugin.$fullname")
 
+    val isExperimental: Boolean
+        get() = this::class.findAnnotation<Experimental>() != null
+
     override fun close() {}
 
     enum class Priority {
         Highest, Higher, High, Normal, Low, Lower, Lowest
     }
+
+    @Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION)
+    annotation class Experimental
 
     @Target(AnnotationTarget.FUNCTION)
     annotation class Event(
@@ -95,8 +102,6 @@ abstract class Plugin(
             constructor(args: String, command: Subscription.Command, event: MessageReceivedEvent): this(args, command, event.message, event.author, event.member, event.guild, event.textChannel, event.channel, event.jda, event.responseNumber)
             constructor(args: String, command: Subscription.Command, event: MessageUpdateEvent): this(args, command, event.message, event.author, event.member, event.guild, event.textChannel, event.channel, event.jda, event.responseNumber)
 
-            val commandLine: String
-                get() = message.contentDisplay
             val argList: List<String>
                 get() = if (args.isNotBlank()) {
                     args.split(spaceRegex)
@@ -212,7 +217,14 @@ abstract class Plugin(
     object Web {
         @Target(AnnotationTarget.FUNCTION)
         annotation class Page(
-            val path: String, val domain: String = "", val pathType: PathType = PathType.Normal, val methods: Array<HttpMethod> = [], val regexOptions: Array<RegexOption> = [], val updateFrequency: SitemapUpdateFrequency = SitemapUpdateFrequency.Monthly, val priority: Priority = Priority.Normal, val banRobots: Boolean = false
+            val path: String,
+            val domain: String = "",
+            val pathType: PathType = PathType.Normal,
+            val methods: Array<HttpMethod> = [],
+            val regexOptions: Array<RegexOption> = [],
+            val updateFrequency: SitemapUpdateFrequency = SitemapUpdateFrequency.Monthly,
+            val priority: Priority = Priority.Normal,
+            val banRobots: Boolean = false
         )
 
         @Target(AnnotationTarget.FUNCTION)

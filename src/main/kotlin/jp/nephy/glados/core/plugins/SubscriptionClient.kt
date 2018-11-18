@@ -29,6 +29,7 @@ import jp.nephy.glados.core.audio.player.GuildPlayer
 import jp.nephy.glados.core.audio.player.player
 import jp.nephy.glados.core.extensions.*
 import jp.nephy.glados.core.extensions.messages.HexColor
+import jp.nephy.glados.core.extensions.messages.prompt.PromptEmoji
 import jp.nephy.glados.core.extensions.web.FontOtf
 import jp.nephy.glados.core.extensions.web.FontWoff2
 import jp.nephy.glados.core.extensions.web.Navimap
@@ -157,7 +158,7 @@ object SubscriptionClient {
             }
         }
 
-        private fun handleMessage(event: GenericMessageEvent, message: Message, channelType: ChannelType) {
+        private suspend fun handleMessage(event: GenericMessageEvent, message: Message, channelType: ChannelType) {
             val text = message.contentDisplay.trim()
 
             for (subscription in activeSubscriptions) {
@@ -273,13 +274,41 @@ object SubscriptionClient {
                         logger.warn { "\"$text\": オーナーではないため実行されませんでした。 (${commandEvent.authorName})" }
                     }
                     else -> {
-                        launch {
+                        if (subscription.isExperimental) {
+                            commandEvent.message.prompt {
+                                emoji<ExperimentalConsent, ExperimentalConsent>(
+                                    title = "`${commandEvent.command.primaryCommandSyntax}`", description = "⚠ この機能は現在 試験中(Experimental) です。予期しない不具合が発生する可能性がありますが, ご理解の上ご利用ください。", color = HexColor.Change, timeoutSec = 30
+                                ) { consent, m, _ ->
+                                    launch {
+                                        if (consent == ExperimentalConsent.Agree) {
+                                            m.delete().launch()
+
+                                            subscription.invoke(commandEvent)
+                                            subscription.logger.trace { "同意したので実行されました。(${event.guild?.name})" }
+                                        } else {
+                                            m.edit {
+                                                embed {
+                                                    title("`${commandEvent.command.primaryCommandSyntax}`")
+                                                    description { "キャンセルしました。" }
+                                                    color(HexColor.Bad)
+                                                    timestamp()
+                                                }
+                                            }.awaitAndDelete(15, TimeUnit.SECONDS)
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
                             subscription.invoke(commandEvent)
                             subscription.logger.trace { "実行されました。(${event.guild?.name})" }
                         }
                     }
                 }
             }
+        }
+
+        private enum class ExperimentalConsent(override val emoji: String, override val friendlyName: String): PromptEmoji {
+            Agree("✅", "同意"), Disagree("❌", "キャンセル")
         }
 
         private fun Subscription.Command.satisfyChannelTypeRequirement(type: ChannelType): Boolean {
@@ -782,6 +811,7 @@ object SubscriptionClient {
                     }
                 }
                 install(CachingHeaders) {
+                    // TODO
                     options {
                         when (it.contentType?.withoutParameters()) {
                             // コンテンツ
