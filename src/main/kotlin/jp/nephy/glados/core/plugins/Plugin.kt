@@ -4,8 +4,8 @@ import io.ktor.application.ApplicationCall
 import io.ktor.application.call
 import io.ktor.util.pipeline.PipelineContext
 import jp.nephy.glados.config
-import jp.nephy.glados.core.GLaDOSConfig
-import jp.nephy.glados.core.SlackLogger
+import jp.nephy.glados.core.config.GLaDOSConfig
+import jp.nephy.glados.core.logger.SlackLogger
 import jp.nephy.glados.core.extensions.displayName
 import jp.nephy.glados.core.extensions.fullName
 import jp.nephy.glados.core.extensions.ifNullOrBlank

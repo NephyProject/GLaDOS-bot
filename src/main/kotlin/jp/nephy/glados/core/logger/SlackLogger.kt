@@ -1,4 +1,4 @@
-package jp.nephy.glados.core
+package jp.nephy.glados.core.logger
 
 import ch.qos.logback.classic.Level
 import jp.nephy.glados.config

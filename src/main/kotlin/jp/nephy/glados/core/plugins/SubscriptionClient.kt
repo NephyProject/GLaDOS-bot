@@ -26,8 +26,8 @@ import io.ktor.util.AttributeKey
 import io.ktor.util.date.GMTDate
 import io.ktor.util.pipeline.PipelineContext
 import jp.nephy.glados.config
-import jp.nephy.glados.core.GLaDOSConfig
-import jp.nephy.glados.core.SlackLogger
+import jp.nephy.glados.core.config.GLaDOSConfig
+import jp.nephy.glados.core.logger.SlackLogger
 import jp.nephy.glados.core.audio.player.GuildPlayer
 import jp.nephy.glados.core.audio.player.player
 import jp.nephy.glados.core.extensions.*

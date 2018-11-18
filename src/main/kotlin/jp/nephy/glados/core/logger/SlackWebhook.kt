@@ -1,4 +1,4 @@
-package jp.nephy.glados.core
+package jp.nephy.glados.core.logger
 
 import io.ktor.client.request.post
 import io.ktor.client.response.HttpResponse

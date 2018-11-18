@@ -9,7 +9,7 @@ import io.ktor.request.httpMethod
 import io.ktor.request.path
 import io.ktor.util.pipeline.PipelineContext
 import jp.nephy.glados.config
-import jp.nephy.glados.core.SlackLogger
+import jp.nephy.glados.core.logger.SlackLogger
 import jp.nephy.glados.core.extensions.*
 import jp.nephy.glados.core.extensions.messages.HexColor
 import jp.nephy.glados.core.extensions.web.SitemapUpdateFrequency

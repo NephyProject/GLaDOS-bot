@@ -4,7 +4,7 @@ import com.sedmelluq.discord.lavaplayer.player.AudioPlayer
 import com.sedmelluq.discord.lavaplayer.player.event.AudioEventAdapter
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack
 import com.sedmelluq.discord.lavaplayer.track.AudioTrackEndReason
-import jp.nephy.glados.core.SlackLogger
+import jp.nephy.glados.core.logger.SlackLogger
 import jp.nephy.glados.core.extensions.isNoOneExceptSelf
 import jp.nephy.glados.core.extensions.removeAtOrNull
 import jp.nephy.glados.core.extensions.sumBy

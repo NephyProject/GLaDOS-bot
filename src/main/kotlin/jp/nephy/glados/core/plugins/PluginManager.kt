@@ -1,7 +1,7 @@
 package jp.nephy.glados.core.plugins
 
 import jp.nephy.glados.config
-import jp.nephy.glados.core.SlackLogger
+import jp.nephy.glados.core.logger.SlackLogger
 import jp.nephy.glados.core.extensions.round
 import jp.nephy.glados.dispatcher
 import kotlinx.coroutines.GlobalScope
