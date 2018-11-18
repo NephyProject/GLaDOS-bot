@@ -1,4 +1,4 @@
-package jp.nephy.glados.core
+package jp.nephy.glados.core.config
 
 import ch.qos.logback.classic.Level
 import io.ktor.client.engine.apache.Apache
@@ -18,17 +18,20 @@ import net.dv8tion.jda.core.entities.VoiceChannel
 import java.nio.file.Path
 import java.nio.file.Paths
 
-val productionConfigPath = Paths.get("config.prod.json")!!
-val developmentConfigPath = Paths.get("config.dev.json")!!
-val secretConfigPath = Paths.get("config.secret.json")!!
-
-fun Boolean?.isFalseOrNull(): Boolean {
-    return this != true
-}
-
 data class GLaDOSConfig(override val json: JsonObject): JsonModel {
     companion object {
-        fun load(path: Path): GLaDOSConfig {
+        internal val productionConfigPath = Paths.get("config.prod.json")!!
+        internal val developmentConfigPath = Paths.get("config.dev.json")!!
+
+        fun load(debug: Boolean): GLaDOSConfig {
+            return if (debug) {
+                load(developmentConfigPath)
+            } else {
+                load(productionConfigPath)
+            }
+        }
+
+        private fun load(path: Path): GLaDOSConfig {
             return path.parse()
         }
     }
@@ -38,8 +41,8 @@ data class GLaDOSConfig(override val json: JsonObject): JsonModel {
     val clientSecret by string("client_secret")
     val redirectUri by string("redirect_uri")
     val ownerId by nullableLong("owner_id")
-    val logLevel by lambda("log_level") { Level.toLevel(it.string, Level.INFO)!! }
-    val logLevelForSlack by lambda("log_level_for_slack") { Level.toLevel(it.string, Level.INFO)!! }
+    val logLevel by lambda("log_level", { Level.INFO!! }) { Level.toLevel(it.stringOrNull, Level.INFO)!! }
+    val logLevelForSlack by lambda("log_level_for_slack", { Level.INFO!! }) { Level.toLevel(it.stringOrNull, Level.INFO)!! }
     val prefix by string { "!" }
     val pluginsPackagePrefixes by stringList("plugins_package_prefixes")
     val parallelism by int { minOf(Runtime.getRuntime().availableProcessors() / 2, 1) }
@@ -160,83 +163,10 @@ data class GLaDOSConfig(override val json: JsonObject): JsonModel {
                     emulationMode = mode
                 }
             }
-
-            override fun hashCode(): Int {
-                return ck.hashCode() + 3 * cs.hashCode() + 33 * at.hashCode() + 333 + ats.hashCode()
-            }
-
-            override fun equals(other: Any?): Boolean {
-                return if (other !is TwitterAccount) {
-                    false
-                } else {
-                    ck == other.ck && cs == other.cs && at == other.at && ats == other.ats
-                }
-            }
         }
     }
 
     fun twitterAccount(name: String): Accounts.TwitterAccount {
         return accounts.twitter[name] ?: throw IllegalArgumentException("$name is not found in config.json.")
-    }
-}
-
-class SecretConfig private constructor(override val json: JsonObject): JsonModel {
-    companion object {
-        fun load(path: Path): SecretConfig {
-            return SecretConfig(path.toJsonObject())
-        }
-    }
-
-    inline fun <reified T> forKey(key: String): T {
-        return forKeySafe<T>(key, null)!!
-    }
-
-    inline fun <reified T> forKey(key: String, default: T): T {
-        return forKeySafe(key, default)!!
-    }
-
-    inline fun <reified T> forKey(key: String, noinline default: () -> T): T {
-        return forKeySafe(key, default)!!
-    }
-
-    fun string(key: String): String? {
-        return forKey(key)
-    }
-
-    @Suppress("IMPLICIT_CAST_TO_ANY")
-    inline fun <reified T> forKeySafe(key: String, default: T? = null): T? {
-        val value = json.getOrNull(key) ?: return null
-
-        return when (T::class) {
-            Boolean::class -> {
-                value.booleanOrNull
-            }
-            Int::class -> {
-                value.intOrNull
-            }
-            Long::class -> {
-                value.longOrNull
-            }
-            Float::class -> {
-                value.floatOrNull
-            }
-            Double::class -> {
-                value.doubleOrNull
-            }
-            String::class -> {
-                value.stringOrNull
-            }
-            else -> null
-        } as T? ?: default
-    }
-
-    inline fun <reified T> forKeySafe(key: String, noinline default: () -> T? = { null }): T? {
-        return forKeySafe(key, default.safeInvoke())
-    }
-
-    fun <T> (() -> T?).safeInvoke() = try {
-        invoke()
-    } catch (e: Throwable) {
-        null
     }
 }

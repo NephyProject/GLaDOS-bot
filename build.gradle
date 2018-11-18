@@ -100,7 +100,7 @@ dependencies {
     compile "io.ktor:ktor-client-apache:$ktor_version"
 
     /* Hot reloading */
-    compile "io.methvin:directory-watcher:0.8.1"
+    compile "io.methvin:directory-watcher:0.9.0"
 
     /* Misc */
     compile "org.apache.commons:commons-lang3:3.8.1"

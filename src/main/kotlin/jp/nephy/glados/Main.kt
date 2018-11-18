@@ -5,12 +5,15 @@ import com.mongodb.client.MongoDatabase
 import com.sedmelluq.discord.lavaplayer.jdaudp.NativeAudioSendFactory
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.apache.Apache
-import jp.nephy.glados.core.*
+import jp.nephy.glados.core.config.ConfigFileWatcher
+import jp.nephy.glados.core.config.GLaDOSConfig
+import jp.nephy.glados.core.config.SecretConfig
 import jp.nephy.glados.core.extensions.database
+import jp.nephy.glados.core.logger.SlackLogger
+import jp.nephy.glados.core.logger.SlackWebhook
 import jp.nephy.glados.core.plugins.SubscriptionClient
 import kotlinx.coroutines.ExecutorCoroutineDispatcher
 import kotlinx.coroutines.ObsoleteCoroutinesApi
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.newFixedThreadPoolContext
 import net.dv8tion.jda.core.AccountType
 import net.dv8tion.jda.core.JDA
@@ -21,9 +24,9 @@ import org.litote.kmongo.KMongo
 var isDebugMode = false
     private set
 lateinit var secret: SecretConfig
-    private set
+    internal set
 lateinit var config: GLaDOSConfig
-    private set
+    internal set
 lateinit var dispatcher: ExecutorCoroutineDispatcher
     private set
 lateinit var httpClient: HttpClient
@@ -43,12 +46,8 @@ const val userAgent = "GLaDOS-bot (+https://github.com/NephyProject/GLaDOS-bot)"
 suspend fun main(args: Array<String>) {
     isDebugMode = "--debug" in args
 
-    secret = SecretConfig.load(secretConfigPath)
-    config = if (isDebugMode) {
-        GLaDOSConfig.load(developmentConfigPath)
-    } else {
-        GLaDOSConfig.load(productionConfigPath)
-    }
+    secret = SecretConfig.load()
+    config = GLaDOSConfig.load(isDebugMode)
 
     dispatcher = newFixedThreadPoolContext(config.parallelism, "GLaDOS-Worker")
     httpClient = HttpClient(Apache)
@@ -75,7 +74,9 @@ suspend fun main(args: Array<String>) {
         SubscriptionClient.registerClients(this)
     }.build()
 
+    ConfigFileWatcher.block()
+
     while (true) {
-        delay(10000)
+        Thread.sleep(10000)
     }
 }
