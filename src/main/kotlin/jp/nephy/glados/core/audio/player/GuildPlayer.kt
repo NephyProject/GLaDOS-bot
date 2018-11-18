@@ -7,17 +7,17 @@ import com.sedmelluq.discord.lavaplayer.source.nico.NicoAudioSourceManager
 import com.sedmelluq.discord.lavaplayer.tools.FriendlyException
 import com.sedmelluq.discord.lavaplayer.track.AudioPlaylist
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack
+import com.sedmelluq.discord.lavaplayer.track.playback.AudioFrame
 import jp.nephy.glados.config
-import jp.nephy.glados.core.GLaDOSConfig
-import jp.nephy.glados.core.SlackLogger
-import jp.nephy.glados.core.audio.AudioSendHandlerImpl
-import jp.nephy.glados.core.audio.SilenceAudioSendHandler
+import jp.nephy.glados.core.config.GLaDOSConfig
+import jp.nephy.glados.core.logger.SlackLogger
 import jp.nephy.glados.core.audio.player.api.niconico.NiconicoClient
 import jp.nephy.glados.core.audio.player.api.youtube.YouTubeClient
 import jp.nephy.glados.core.plugins.SubscriptionClient
 import jp.nephy.glados.dispatcher
 import jp.nephy.glados.secret
 import kotlinx.coroutines.runBlocking
+import net.dv8tion.jda.core.audio.AudioSendHandler
 import net.dv8tion.jda.core.entities.Guild
 import net.dv8tion.jda.core.entities.VoiceChannel
 import java.util.concurrent.ConcurrentHashMap
@@ -33,21 +33,30 @@ val Guild.player: GuildPlayer?
             val defaultVoiceChannel = guildConfig.voiceChannel("default") ?: return null
 
             GuildPlayer(this, guildConfig, defaultVoiceChannel).also {
-                audioManager.isAutoReconnect = true
                 audioManager.connectionListener = runBlocking(dispatcher) {
                     SubscriptionClient.ConnectionEvent.create(this@player)
                 }
-                audioManager.sendingHandler = SilenceAudioSendHandler {
-                    // Hotfix: https://github.com/DV8FromTheWorld/JDA/issues/789
-                    audioManager.sendingHandler = AudioSendHandlerImpl(it.audioPlayer)
-                    audioManager.setReceivingHandler(runBlocking(dispatcher) {
-                        SubscriptionClient.ReceiveAudio.create(it)
-                    })
-                    it.audioPlayer.addListener(runBlocking(dispatcher) {
-                        SubscriptionClient.AudioEvent.create(it)
-                    })
-                    logger.info { "[${defaultVoiceChannel.name} ($name)] 無音の送信が終了しました。" }
+
+                audioManager.sendingHandler = object: AudioSendHandler {
+                    private var lastFrame: AudioFrame? = null
+
+                    override fun canProvide(): Boolean {
+                        lastFrame = it.audioPlayer.provide()
+                        return lastFrame != null
+                    }
+
+                    override fun provide20MsAudio() = lastFrame?.data
+
+                    override fun isOpus() = true
                 }
+
+                audioManager.setReceivingHandler(runBlocking(dispatcher) {
+                    SubscriptionClient.ReceiveAudio.create(it)
+                })
+
+                it.audioPlayer.addListener(runBlocking(dispatcher) {
+                    SubscriptionClient.AudioEvent.create(it)
+                })
             }
         }
     }
