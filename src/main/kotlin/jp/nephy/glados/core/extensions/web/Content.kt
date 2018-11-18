@@ -8,6 +8,7 @@ import io.ktor.http.content.OutgoingContent
 import io.ktor.http.withCharset
 import io.ktor.response.respond
 import io.ktor.response.respondText
+import io.ktor.util.KtorExperimentalAPI
 import io.ktor.util.cio.bufferedWriter
 import jp.nephy.jsonkt.*
 import jp.nephy.jsonkt.delegation.*
@@ -15,6 +16,7 @@ import kotlinx.coroutines.io.ByteWriteChannel
 import kotlinx.html.*
 import kotlinx.html.stream.*
 
+@UseExperimental(KtorExperimentalAPI::class)
 suspend inline fun ApplicationCall.respondMinifiedHtml(status: HttpStatusCode = HttpStatusCode.OK, noinline block: HTML.() -> Unit) {
     respond(status, object: OutgoingContent.WriteChannelContent() {
         override val contentType = ContentType.Text.Html.withCharset(Charsets.UTF_8)
