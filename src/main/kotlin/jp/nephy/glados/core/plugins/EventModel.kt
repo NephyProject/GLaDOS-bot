@@ -26,7 +26,9 @@ import net.dv8tion.jda.client.events.message.group.react.GroupMessageReactionAdd
 import net.dv8tion.jda.client.events.message.group.react.GroupMessageReactionRemoveAllEvent
 import net.dv8tion.jda.client.events.message.group.react.GroupMessageReactionRemoveEvent
 import net.dv8tion.jda.client.events.relationship.*
+import net.dv8tion.jda.core.audio.CombinedAudio
 import net.dv8tion.jda.core.audio.SpeakingMode
+import net.dv8tion.jda.core.audio.UserAudio
 import net.dv8tion.jda.core.audio.hooks.ConnectionStatus
 import net.dv8tion.jda.core.entities.Guild
 import net.dv8tion.jda.core.entities.User
@@ -92,6 +94,9 @@ interface EventModel {
 
     @Target(AnnotationTarget.FUNCTION)
     annotation class FromAudioEventAdapter
+
+    @Target(AnnotationTarget.FUNCTION)
+    annotation class FromAudioReceiveHandler
 
     @Target(AnnotationTarget.FUNCTION)
     annotation class FromTweetstorm
@@ -870,6 +875,15 @@ interface EventModel {
 
     @FromAudioEventAdapter
     suspend fun onEvent(guildPlayer: GuildPlayer, event: AudioEvent) {
+    }
+
+    /* AudioReceiveHandler */
+    @FromAudioReceiveHandler
+    suspend fun onCombinedAudio(guildPlayer: GuildPlayer, combinedAudio: CombinedAudio) {
+    }
+
+    @FromAudioReceiveHandler
+    suspend fun onUserAudio(guildPlayer: GuildPlayer, userAudio: UserAudio) {
     }
 
     /* Tweetstorm */

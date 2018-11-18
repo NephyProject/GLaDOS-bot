@@ -10,11 +10,10 @@ import com.sedmelluq.discord.lavaplayer.track.AudioTrack
 import jp.nephy.glados.config
 import jp.nephy.glados.core.GLaDOSConfig
 import jp.nephy.glados.core.SlackLogger
-import jp.nephy.glados.core.audio.player.api.niconico.NiconicoClient
-import jp.nephy.glados.core.audio.player.api.youtube.YouTubeClient
-import jp.nephy.glados.core.audio.AudioReceiveHandlerImpl
 import jp.nephy.glados.core.audio.AudioSendHandlerImpl
 import jp.nephy.glados.core.audio.SilenceAudioSendHandler
+import jp.nephy.glados.core.audio.player.api.niconico.NiconicoClient
+import jp.nephy.glados.core.audio.player.api.youtube.YouTubeClient
 import jp.nephy.glados.core.plugins.SubscriptionClient
 import jp.nephy.glados.dispatcher
 import jp.nephy.glados.secret
@@ -41,7 +40,9 @@ val Guild.player: GuildPlayer?
                 audioManager.sendingHandler = SilenceAudioSendHandler {
                     // Hotfix: https://github.com/DV8FromTheWorld/JDA/issues/789
                     audioManager.sendingHandler = AudioSendHandlerImpl(it.audioPlayer)
-                    audioManager.setReceivingHandler(AudioReceiveHandlerImpl(it))
+                    audioManager.setReceivingHandler(runBlocking(dispatcher) {
+                        SubscriptionClient.ReceiveAudio.create(it)
+                    })
                     it.audioPlayer.addListener(runBlocking(dispatcher) {
                         SubscriptionClient.AudioEvent.create(it)
                     })

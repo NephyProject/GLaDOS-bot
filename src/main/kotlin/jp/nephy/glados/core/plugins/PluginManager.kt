@@ -196,6 +196,13 @@ object PluginManager {
                             }
                         }
                     }
+                    function.satisfies<EventModel.FromAudioReceiveHandler>() -> {
+                        if (function.isPublic()) {
+                            SubscriptionClient.ReceiveAudio += Subscription.Event(annotation ?: defaultEventAnnotation, instance, function).also {
+                                logger.trace { "ReceiveAudio: ${it.fullname} をロードしました。" }
+                            }
+                        }
+                    }
                 }
             }
 

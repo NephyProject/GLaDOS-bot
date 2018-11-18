@@ -5,9 +5,11 @@ package jp.nephy.glados.core.plugins
 import com.sedmelluq.discord.lavaplayer.player.event.*
 import io.ktor.application.*
 import io.ktor.features.*
+import io.ktor.http.CacheControl
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.content.CachingOptions
 import io.ktor.request.path
 import io.ktor.request.userAgent
 import io.ktor.response.respond
@@ -21,6 +23,7 @@ import io.ktor.sessions.SessionStorageMemory
 import io.ktor.sessions.Sessions
 import io.ktor.sessions.cookie
 import io.ktor.util.AttributeKey
+import io.ktor.util.date.GMTDate
 import io.ktor.util.pipeline.PipelineContext
 import jp.nephy.glados.config
 import jp.nephy.glados.core.GLaDOSConfig
@@ -41,7 +44,10 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import net.dv8tion.jda.core.JDABuilder
+import net.dv8tion.jda.core.audio.AudioReceiveHandler
+import net.dv8tion.jda.core.audio.CombinedAudio
 import net.dv8tion.jda.core.audio.SpeakingMode
+import net.dv8tion.jda.core.audio.UserAudio
 import net.dv8tion.jda.core.audio.hooks.ConnectionListener
 import net.dv8tion.jda.core.audio.hooks.ConnectionStatus
 import net.dv8tion.jda.core.entities.*
@@ -54,7 +60,9 @@ import net.dv8tion.jda.core.events.message.MessageUpdateEvent
 import net.dv8tion.jda.core.hooks.AnnotatedEventManager
 import net.dv8tion.jda.core.hooks.SubscribeEvent
 import java.util.*
+import java.util.TimeZone
 import java.util.concurrent.TimeUnit
+import kotlin.coroutines.CoroutineContext
 
 object SubscriptionClient {
     suspend fun registerClients(builder: JDABuilder) {
@@ -470,12 +478,15 @@ object SubscriptionClient {
     }
 
     class AudioEvent private constructor(private val guildPlayer: GuildPlayer): Client<Plugin.Event, Subscription.Event>(), AudioEventListener {
-        companion object {
+        companion object: CoroutineScope {
+            override val coroutineContext: CoroutineContext
+                get() = dispatcher
+
             private val subscriptionsMutex = Mutex()
             private val subscriptions = mutableListOf<Subscription.Event>()
 
             operator fun plusAssign(subscription: Subscription.Event) {
-                GlobalScope.launch(dispatcher) {
+                launch {
                     subscriptionsMutex.withLock {
                         subscriptions += subscription
                     }
@@ -514,13 +525,64 @@ object SubscriptionClient {
         }
     }
 
-    class ConnectionEvent private constructor(val guild: Guild): Client<Plugin.Event, Subscription.Event>(), ConnectionListener {
-        companion object {
+    class ReceiveAudio private constructor(private val guildPlayer: GuildPlayer): Client<Plugin.Event, Subscription.Event>(), AudioReceiveHandler {
+        companion object: CoroutineScope {
+            override val coroutineContext: CoroutineContext
+                get() = dispatcher
+
             private val subscriptionsMutex = Mutex()
             private val subscriptions = mutableListOf<Subscription.Event>()
 
             operator fun plusAssign(subscription: Subscription.Event) {
-                GlobalScope.launch(dispatcher) {
+                launch {
+                    subscriptionsMutex.withLock {
+                        subscriptions += subscription
+                    }
+                }
+            }
+
+            fun create(guildPlayer: GuildPlayer): ReceiveAudio {
+                return ReceiveAudio(guildPlayer).also {
+                    it += subscriptions
+                    it.sortByPriority()
+                }
+            }
+        }
+
+        private fun runEvent(vararg args: Any) {
+            activeSubscriptions.filter {
+                it.matchParameters(*args)
+            }.forEach {
+                launch {
+                    it.invoke(*args)
+                    it.logger.trace { "実行されました。(${guildPlayer.guild.name})" }
+                }
+            }
+        }
+
+        override fun canReceiveCombined() = true
+
+        override fun handleCombinedAudio(combinedAudio: CombinedAudio) {
+            runEvent(guildPlayer, combinedAudio)
+        }
+
+        override fun canReceiveUser() = true
+
+        override fun handleUserAudio(userAudio: UserAudio) {
+            runEvent(guildPlayer, userAudio)
+        }
+    }
+
+    class ConnectionEvent private constructor(val guild: Guild): Client<Plugin.Event, Subscription.Event>(), ConnectionListener {
+        companion object: CoroutineScope {
+            override val coroutineContext: CoroutineContext
+                get() = dispatcher
+
+            private val subscriptionsMutex = Mutex()
+            private val subscriptions = mutableListOf<Subscription.Event>()
+
+            operator fun plusAssign(subscription: Subscription.Event) {
+                launch {
                     subscriptionsMutex.withLock {
                         subscriptions += subscription
                     }
@@ -811,31 +873,27 @@ object SubscriptionClient {
                     }
                 }
                 install(CachingHeaders) {
-                    // TODO
-                    options {
-                        when (it.contentType?.withoutParameters()) {
+                    options { outgoingContent ->
+                        val (timezone, locale) = TimeZone.getTimeZone("GMT") to Locale.ROOT
+                        when (val contentType = outgoingContent.contentType?.withoutParameters() ?: return@options null) {
                             // コンテンツ
                             ContentType.Text.Html, ContentType.Text.Plain, ContentType.Application.Json, ContentType.Text.Xml -> {
                                 null
                             }
                             // ページアセット
                             ContentType.Application.JavaScript, ContentType.Text.CSS, ContentType.Application.Navimap -> {
-                                null  // CachingOptions(CacheControl.MaxAge(60 * 60 * 24 * 7))
+                                CachingOptions(CacheControl.MaxAge(60 * 60 * 24 * 7), expires = GMTDate(Calendar.getInstance(timezone, locale).also { it.add(Calendar.DATE, 7) }.timeInMillis))
                             }
                             // メディア
                             ContentType.Image.PNG, ContentType.Image.JPEG, ContentType.Image.GIF, ContentType.Image.SVG, ContentType.Image.XIcon, ContentType.Audio.OGG -> {
-                                null  // CachingOptions(CacheControl.MaxAge(60 * 60 * 24 * 14))
+                                CachingOptions(CacheControl.MaxAge(60 * 60 * 24 * 14), expires = GMTDate(Calendar.getInstance(timezone, locale).also { it.add(Calendar.DATE, 14) }.timeInMillis))
                             }
                             // フォント
                             ContentType.Application.FontOtf, ContentType.Application.FontWoff, ContentType.Application.FontWoff2 -> {
-                                null  // CachingOptions(CacheControl.MaxAge(60 * 60 * 24 * 21))
+                                CachingOptions(CacheControl.MaxAge(60 * 60 * 24 * 21), expires = GMTDate(Calendar.getInstance(timezone, locale).also { it.add(Calendar.DATE, 21) }.timeInMillis))
                             }
-                            ContentType.Application.OctetStream -> {
-                                null  // CachingOptions(CacheControl.MaxAge(60 * 60 * 6))
-                            }
-                            null -> null
                             else -> {
-                                logger.warn { "キャッシュが未定義のMimeTypeを検出しました: ${it.contentType?.withoutParameters()}" }
+                                logger.warn { "キャッシュが未定義のMimeTypeを検出しました: $contentType" }
                                 null
                             }
                         }
