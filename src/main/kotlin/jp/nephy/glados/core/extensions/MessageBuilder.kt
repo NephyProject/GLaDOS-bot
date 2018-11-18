@@ -17,48 +17,48 @@ import net.dv8tion.jda.core.requests.restaction.MessageAction
 
 /* Reply */
 
-fun Plugin.Command.Event.reply(operation: SendMessageWrapper.() -> Unit): MessageAction {
+inline fun Plugin.Command.Event.reply(operation: SendMessageWrapper.() -> Unit): MessageAction {
     return SendMessageWrapper(channel, author).apply(operation).build()
 }
 
-fun MessageReceivedEvent.reply(operation: SendMessageWrapper.() -> Unit): MessageAction {
+inline fun MessageReceivedEvent.reply(operation: SendMessageWrapper.() -> Unit): MessageAction {
     return SendMessageWrapper(channel, author).apply(operation).build()
 }
 
-fun MessageUpdateEvent.reply(operation: SendMessageWrapper.() -> Unit): MessageAction {
+inline fun MessageUpdateEvent.reply(operation: SendMessageWrapper.() -> Unit): MessageAction {
     return SendMessageWrapper(channel, author).apply(operation).build()
 }
 
-fun Message.reply(operation: SendMessageWrapper.() -> Unit): MessageAction {
+inline fun Message.reply(operation: SendMessageWrapper.() -> Unit): MessageAction {
     return SendMessageWrapper(channel, author).apply(operation).build()
 }
 
-fun MessageChannel.reply(to: IMentionable, operation: SendMessageWrapper.() -> Unit): MessageAction {
+inline fun MessageChannel.reply(to: IMentionable, operation: SendMessageWrapper.() -> Unit): MessageAction {
     return SendMessageWrapper(this, to).apply(operation).build()
 }
 
 /* Message */
 
-fun Message.message(operation: SendMessageWrapper.() -> Unit): MessageAction {
+inline fun Message.message(operation: SendMessageWrapper.() -> Unit): MessageAction {
     return SendMessageWrapper(channel).apply(operation).build()
 }
 
-fun MessageChannel.message(operation: SendMessageWrapper.() -> Unit): MessageAction {
+inline fun MessageChannel.message(operation: SendMessageWrapper.() -> Unit): MessageAction {
     return SendMessageWrapper(this).apply(operation).build()
 }
 
 /* Edit */
 
-fun Message.edit(operation: EditMessageWrapper.() -> Unit): MessageAction {
+inline fun Message.edit(operation: EditMessageWrapper.() -> Unit): MessageAction {
     return EditMessageWrapper(this).apply(operation).build()
 }
 
 // TODO
-fun Message.prompt(operation: PromptBuilder.() -> Unit) {
+inline fun Message.prompt(operation: PromptBuilder.() -> Unit) {
     PromptBuilder(textChannel, member).apply(operation)
 }
 
-fun TextChannel.prompt(to: Member, operation: PromptBuilder.() -> Unit) {
+inline fun TextChannel.prompt(to: Member, operation: PromptBuilder.() -> Unit) {
     PromptBuilder(this, to).apply(operation)
 }
 
