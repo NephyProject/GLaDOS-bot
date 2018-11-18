@@ -305,7 +305,7 @@ abstract class Plugin(
             InsufficientStorage(io.ktor.http.HttpStatusCode.InsufficientStorage)
         }
 
-        data class AccessEvent(val context: PipelineContext<Unit, ApplicationCall>, val matchResult: MatchResult?, val fragments: Map<String, String>) {
+        data class AccessEvent(val context: PipelineContext<*, ApplicationCall>, val matchResult: MatchResult?, val fragments: Map<String, String>) {
             val call: ApplicationCall
                 get() = context.call
         }

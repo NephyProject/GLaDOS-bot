@@ -13,13 +13,17 @@ import kotlinx.coroutines.io.writeStringUtf8
 import mu.KotlinLogging
 import java.io.Closeable
 import java.util.concurrent.TimeUnit
+import kotlin.coroutines.CoroutineContext
 
-class SlackWebhook(private val url: String, private val retryInterval: Long = 3, private val retryIntervalUnit: TimeUnit = TimeUnit.SECONDS, private val maxRetries: Int = 3): Closeable {
+class SlackWebhook(private val url: String, private val retryInterval: Long = 3, private val retryIntervalUnit: TimeUnit = TimeUnit.SECONDS, private val maxRetries: Int = 3): Closeable, CoroutineScope {
     private val logger = KotlinLogging.logger("SlackWebhook")
     private val masterJob = Job()
 
+    override val coroutineContext: CoroutineContext
+        get() = dispatcher + masterJob
+
     fun message(channel: String? = null, builder: MessageBuilder.() -> Unit): Job {
-        return GlobalScope.launch(dispatcher + masterJob) {
+        return launch {
             messageAwait(channel, builder)
         }
     }
