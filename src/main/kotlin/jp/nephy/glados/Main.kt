@@ -37,7 +37,7 @@ lateinit var eventWaiter: EventWaiter
 lateinit var jda: JDA
     private set
 
-const val userAgent = "GLaDOS-bot (+https://github.com/SlashNephy/GLaDOS-bot)"
+const val userAgent = "GLaDOS-bot (+https://github.com/NephyProject/GLaDOS-bot)"
 
 @UseExperimental(ObsoleteCoroutinesApi::class)
 suspend fun main(args: Array<String>) {
@@ -56,7 +56,7 @@ suspend fun main(args: Array<String>) {
 
     val logger = SlackLogger("GLaDOS")
     if (isDebugMode) {
-        logger.info { "デバックモードで起動しています。" }
+        logger.info { "デバッグモードで起動しています。" }
     } else {
         logger.info { "プロダクションモードで起動しています。" }
     }
@@ -68,7 +68,7 @@ suspend fun main(args: Array<String>) {
         setToken(config.token)
         setGame(Game.playing("Starting..."))
         setEnableShutdownHook(false)
-        setAudioSendFactory(NativeAudioSendFactory(1500))
+        setAudioSendFactory(NativeAudioSendFactory(5000))
 
         addEventListener(eventWaiter)
 
