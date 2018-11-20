@@ -9,11 +9,11 @@ import jp.nephy.glados.core.config.ConfigFileWatcher
 import jp.nephy.glados.core.config.GLaDOSConfig
 import jp.nephy.glados.core.config.SecretConfig
 import jp.nephy.glados.core.extensions.database
-import jp.nephy.glados.core.logger.SlackLogger
 import jp.nephy.glados.core.logger.SlackWebhook
 import jp.nephy.glados.core.plugins.SubscriptionClient
 import kotlinx.coroutines.ExecutorCoroutineDispatcher
 import kotlinx.coroutines.ObsoleteCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.newFixedThreadPoolContext
 import net.dv8tion.jda.core.AccountType
 import net.dv8tion.jda.core.JDA
@@ -46,19 +46,12 @@ const val userAgent = "GLaDOS-bot (+https://github.com/NephyProject/GLaDOS-bot)"
 suspend fun main(args: Array<String>) {
     isDebugMode = "--debug" in args
 
-    secret = SecretConfig.load()
     config = GLaDOSConfig.load(isDebugMode)
-
     dispatcher = newFixedThreadPoolContext(config.parallelism, "GLaDOS-Worker")
     httpClient = HttpClient(Apache)
-    slack = SlackWebhook(secret.forKey("slack_webhook_url"))
+    slack = SlackWebhook
 
-    val logger = SlackLogger("GLaDOS")
-    if (isDebugMode) {
-        logger.info { "デバッグモードで起動しています。" }
-    } else {
-        logger.info { "プロダクションモードで起動しています。" }
-    }
+    secret = SecretConfig.load()
 
     mongodb = KMongo.createClient(config.mongodbHost).database("bot")
 
@@ -77,6 +70,6 @@ suspend fun main(args: Array<String>) {
     ConfigFileWatcher.block()
 
     while (true) {
-        Thread.sleep(10000)
+        delay(10000)
     }
 }

@@ -4,6 +4,7 @@ import io.ktor.client.request.post
 import io.ktor.client.response.HttpResponse
 import io.ktor.http.ContentType
 import io.ktor.http.content.OutgoingContent
+import jp.nephy.glados.config
 import jp.nephy.glados.dispatcher
 import jp.nephy.glados.httpClient
 import jp.nephy.jsonkt.*
@@ -12,10 +13,9 @@ import kotlinx.coroutines.io.ByteWriteChannel
 import kotlinx.coroutines.io.writeStringUtf8
 import mu.KotlinLogging
 import java.io.Closeable
-import java.util.concurrent.TimeUnit
 import kotlin.coroutines.CoroutineContext
 
-class SlackWebhook(private val url: String, private val retryInterval: Long = 3, private val retryIntervalUnit: TimeUnit = TimeUnit.SECONDS, private val maxRetries: Int = 3): Closeable, CoroutineScope {
+object SlackWebhook: Closeable, CoroutineScope {
     private val logger = KotlinLogging.logger("SlackWebhook")
     private val masterJob = Job()
 
@@ -30,9 +30,9 @@ class SlackWebhook(private val url: String, private val retryInterval: Long = 3,
 
     suspend fun messageAwait(channel: String? = null, builder: MessageBuilder.() -> Unit): Boolean {
         val requestBody = MessageBuilder(channel).apply(builder).build()
-        repeat(maxRetries) {
+        repeat(3) {
             try {
-                httpClient.post<HttpResponse>(url) {
+                httpClient.post<HttpResponse>(config.slackWebhookUrl) {
                     body = requestBody
                 }
 
@@ -40,11 +40,11 @@ class SlackWebhook(private val url: String, private val retryInterval: Long = 3,
             } catch (e: CancellationException) {
                 return false
             } catch (e: Throwable) {
-                logger.error(e) { "Sending payload to Slack was failed. (${it + 1}/$maxRetries)" }
+                logger.error(e) { "Sending payload to Slack was failed. (${it + 1}/3)" }
             }
 
             try {
-                delay(retryIntervalUnit.toMillis(retryInterval))
+                delay(3000)
             } catch (e: CancellationException) {
                 return false
             }
