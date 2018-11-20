@@ -1,5 +1,6 @@
 package jp.nephy.glados.core.config
 
+import jp.nephy.glados.core.logger.SlackLogger
 import jp.nephy.jsonkt.*
 import jp.nephy.jsonkt.delegation.*
 import kotlinx.serialization.json.*
@@ -9,9 +10,11 @@ import java.nio.file.Paths
 
 class SecretConfig private constructor(override val json: JsonObject): JsonModel {
     companion object {
+        private val logger = SlackLogger("GLaDOS.Config.Secret")
         internal val secretConfigPath = Paths.get("config.secret.json")!!
 
         fun load(): SecretConfig {
+            logger.info { "シークレット設定をロードします。" }
             return load(secretConfigPath)
         }
 
@@ -34,6 +37,10 @@ class SecretConfig private constructor(override val json: JsonObject): JsonModel
 
     fun string(key: String): String? {
         return forKey(key)
+    }
+
+    inline fun <reified T: JsonModel> modelList(key: String): List<T>? {
+        return json.getArrayOrNull(key)?.parseList()
     }
 
     @Suppress("IMPLICIT_CAST_TO_ANY")

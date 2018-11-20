@@ -27,15 +27,12 @@ class SlackLogger(private val name: String, private val channelName: String = "#
         init {
             LogManager.getLogManager().reset()
         }
-
-        var logLevel = config.logLevel
-        var logLevelForSlack = config.logLevelForSlack
     }
 
     private val underlyingLogger = KotlinLogging.logger(name)
     private val logger: KLogger
         get() {
-            underlyingLogger.logLevel = logLevel
+            underlyingLogger.logLevel = config.logLevel
             return underlyingLogger
         }
 
@@ -88,7 +85,7 @@ class SlackLogger(private val name: String, private val channelName: String = "#
     }
 
     private fun slack(level: Level, message: Message) {
-        if (isDebugMode || !level.isGreaterOrEqual(logLevelForSlack)) {
+        if (isDebugMode || !level.isGreaterOrEqual(config.logLevelForSlack)) {
             return
         }
 

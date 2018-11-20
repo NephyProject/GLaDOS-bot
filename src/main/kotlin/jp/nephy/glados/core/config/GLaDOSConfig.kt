@@ -3,6 +3,7 @@ package jp.nephy.glados.core.config
 import ch.qos.logback.classic.Level
 import io.ktor.client.engine.apache.Apache
 import jp.nephy.glados.core.extensions.EmptyJsonObject
+import jp.nephy.glados.core.logger.SlackLogger
 import jp.nephy.glados.jda
 import jp.nephy.jsonkt.*
 import jp.nephy.jsonkt.delegation.*
@@ -11,23 +12,38 @@ import jp.nephy.penicillin.core.emulation.EmulationMode
 import kotlinx.serialization.json.*
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
-import net.dv8tion.jda.core.entities.Guild
-import net.dv8tion.jda.core.entities.Role
-import net.dv8tion.jda.core.entities.TextChannel
-import net.dv8tion.jda.core.entities.VoiceChannel
+import mu.KotlinLogging
+import net.dv8tion.jda.core.entities.*
 import java.nio.file.Path
 import java.nio.file.Paths
 
+val Guild?.config: GLaDOSConfig.GuildConfig?
+    get() = jp.nephy.glados.config.forGuild(this)
+
 data class GLaDOSConfig(override val json: JsonObject): JsonModel {
     companion object {
+        private val logger by lazy { SlackLogger("GLaDOS.Config.GLaDOS") }
         internal val productionConfigPath = Paths.get("config.prod.json")!!
         internal val developmentConfigPath = Paths.get("config.dev.json")!!
 
+        private var first = true
         fun load(debug: Boolean): GLaDOSConfig {
             return if (debug) {
+                if (first) {
+                    KotlinLogging.logger("GLaDOS.Config.GLaDOS")
+                } else {
+                    logger.info { "デバッグモードの設定をロードします。" }
+                }
                 load(developmentConfigPath)
             } else {
+                if (first) {
+                    KotlinLogging.logger("GLaDOS.Config.GLaDOS")
+                } else {
+                    logger.info { "プロダクションモードの設定をロードします。" }
+                }
                 load(productionConfigPath)
+            }.also {
+                first = false
             }
         }
 
@@ -47,6 +63,7 @@ data class GLaDOSConfig(override val json: JsonObject): JsonModel {
     val pluginsPackagePrefixes by stringList("plugins_package_prefixes")
     val parallelism by int { minOf(Runtime.getRuntime().availableProcessors() / 2, 1) }
     val mongodbHost by string("mongodb_host") { "127.0.0.1" }
+    val slackWebhookUrl by string("slack_webhook_url")
 
     val web by model<Web>()
 
@@ -75,6 +92,7 @@ data class GLaDOSConfig(override val json: JsonObject): JsonModel {
         private val textChannels by jsonObject("text_channels") { EmptyJsonObject }
         private val voiceChannels by jsonObject("voice_channels") { EmptyJsonObject }
         private val roles by jsonObject { EmptyJsonObject }
+        private val emotes by jsonObject { EmptyJsonObject }
         private val options by jsonObject { EmptyJsonObject }
 
         fun textChannel(key: String): TextChannel? {
@@ -87,6 +105,10 @@ data class GLaDOSConfig(override val json: JsonObject): JsonModel {
 
         fun role(key: String): Role? {
             return jda.getRoleById(roles.getOrNull(key)?.longOrNull ?: return null)
+        }
+
+        fun emote(key: String): Emote? {
+            return jda.getEmoteById(emotes.getOrNull(key)?.longOrNull ?: return null)
         }
 
         fun <T> option(key: String, operation: (JsonElement) -> T): T? {
@@ -113,8 +135,8 @@ data class GLaDOSConfig(override val json: JsonObject): JsonModel {
             return option(key) { it.booleanOrNull }
         }
 
-        inline fun <reified T: JsonModel> modelListOption(key: String): List<T> {
-            return option(key) { it.jsonArray.parseList<T>() }.orEmpty()
+        inline fun <reified T: JsonModel> modelListOption(key: String): List<T>? {
+            return option(key) { it.jsonArray.parseList<T>() }
         }
 
         inline fun <T> withTextChannel(key: String, operation: (TextChannel) -> T?): T? {
@@ -127,6 +149,10 @@ data class GLaDOSConfig(override val json: JsonObject): JsonModel {
 
         inline fun <T> withRole(key: String, operation: (Role) -> T?): T? {
             return operation(role(key) ?: return null)
+        }
+
+        inline fun <T> withEmote(key: String, operation: (Emote) -> T?): T? {
+            return operation(emote(key) ?: return null)
         }
     }
 
