@@ -179,6 +179,15 @@ object SubscriptionClient {
 
                 when {
                     !subscription.satisfyChannelTypeRequirement(channelType) -> {
+                        commandEvent.reply {
+                            embed {
+                                title("コマンドエラー: `${commandEvent.command.primaryCommandSyntax}`")
+                                description { "このコマンドは ${subscription.targetChannelType.types.joinToString(", ") { it.name }} チャンネルでのみ実行可能です。" }
+                                color(HexColor.Bad)
+                                timestamp()
+                            }
+                        }.launchAndDelete(15, TimeUnit.SECONDS)
+
                         logger.warn { "\"$text\": チャンネルタイプが対象外のため実行されませんでした。 (${commandEvent.authorName})" }
                     }
                     !subscription.satisfyBotChannelRequirement(event.channel) -> {
