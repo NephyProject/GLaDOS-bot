@@ -5,11 +5,9 @@ package jp.nephy.glados.core.plugins
 import com.sedmelluq.discord.lavaplayer.player.event.*
 import io.ktor.application.*
 import io.ktor.features.*
-import io.ktor.http.CacheControl
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
-import io.ktor.http.content.CachingOptions
 import io.ktor.request.path
 import io.ktor.request.userAgent
 import io.ktor.response.respond
@@ -23,20 +21,25 @@ import io.ktor.sessions.SessionStorageMemory
 import io.ktor.sessions.Sessions
 import io.ktor.sessions.cookie
 import io.ktor.util.AttributeKey
-import io.ktor.util.date.GMTDate
 import io.ktor.util.pipeline.PipelineContext
-import jp.nephy.glados.config
+import jp.nephy.glados.GLaDOS
+import jp.nephy.glados.GLaDOS.config
+import jp.nephy.glados.GLaDOS.dispatcher
 import jp.nephy.glados.core.config.GLaDOSConfig
 import jp.nephy.glados.core.logger.SlackLogger
-import jp.nephy.glados.core.audio.player.GuildPlayer
-import jp.nephy.glados.core.audio.player.player
-import jp.nephy.glados.core.extensions.*
-import jp.nephy.glados.core.extensions.messages.HexColor
-import jp.nephy.glados.core.extensions.messages.prompt.PromptEmoji
-import jp.nephy.glados.core.extensions.web.FontOtf
-import jp.nephy.glados.core.extensions.web.FontWoff2
-import jp.nephy.glados.core.extensions.web.Navimap
-import jp.nephy.glados.dispatcher
+import jp.nephy.glados.core.GuildPlayer
+import jp.nephy.glados.core.config.booleanOption
+import jp.nephy.glados.core.config.textChannel
+import jp.nephy.glados.core.plugins.extensions.config
+import jp.nephy.glados.core.plugins.extensions.jda.*
+import jp.nephy.glados.core.plugins.extensions.resourcePath
+import jp.nephy.glados.core.plugins.extensions.web.effectiveHost
+import jp.nephy.glados.core.plugins.extensions.web.url
+import jp.nephy.glados.core.plugins.extensions.jda.messages.HexColor
+import jp.nephy.glados.core.plugins.extensions.jda.messages.prompt.PromptEmoji
+import jp.nephy.glados.core.plugins.extensions.jda.messages.edit
+import jp.nephy.glados.core.plugins.extensions.jda.messages.prompt
+import jp.nephy.glados.core.plugins.extensions.jda.messages.reply
 import jp.nephy.jsonkt.*
 import jp.nephy.penicillin.core.streaming.UserStreamListener
 import jp.nephy.penicillin.models.*
@@ -60,7 +63,6 @@ import net.dv8tion.jda.core.events.message.MessageUpdateEvent
 import net.dv8tion.jda.core.hooks.AnnotatedEventManager
 import net.dv8tion.jda.core.hooks.SubscribeEvent
 import java.util.*
-import java.util.TimeZone
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.CoroutineContext
 
@@ -144,6 +146,8 @@ object SubscriptionClient {
     }
 
     object Command: Client<Plugin.Command, Subscription.Command>(), EventListener {
+        val spaceRegex = "\\s+".toRegex()
+
         @SubscribeEvent
         fun onMessageReceived(event: MessageReceivedEvent) {
             if (event.author.isBotOrSelfUser) {
@@ -194,7 +198,7 @@ object SubscriptionClient {
                         commandEvent.reply {
                             embed {
                                 title("コマンドエラー: `${commandEvent.command.primaryCommandSyntax}`")
-                                description { "このコマンドは ${config.forGuild(event.guild)?.textChannel("bot")?.asMention ?: "#bot"} チャンネルでのみ実行可能です。" }
+                                description { "このコマンドは ${event.guild.config?.textChannel("bot")?.asMention ?: "#bot"} チャンネルでのみ実行可能です。" }
                                 color(HexColor.Bad)
                                 timestamp()
                             }
@@ -333,7 +337,7 @@ object SubscriptionClient {
         }
 
         private fun Subscription.Command.satisfyBotChannelRequirement(channel: MessageChannel): Boolean {
-            return targetChannelType != Plugin.Command.TargetChannelType.BotChannel || (channel is TextChannel && config.forGuild(channel.guild)?.textChannel("bot") == channel)
+            return targetChannelType != Plugin.Command.TargetChannelType.BotChannel || (channel is TextChannel && channel.guild.config?.textChannel("bot") == channel)
         }
 
         private fun Subscription.Command.parseArgs(text: String): String? {
@@ -360,7 +364,7 @@ object SubscriptionClient {
         }
 
         private fun satisfyCommandAvailabilityForGuildRequirement(guild: Guild?): Boolean {
-            return guild == null || config.forGuild(guild)?.boolOption("enable_command") == true
+            return guild == null || guild.config?.booleanOption("enable_command") == true
         }
 
         private fun Subscription.Command.satisfyCommandConditionOfWhileInAnyVoiceChannel(voiceState: GuildVoiceState?): Boolean {
@@ -368,7 +372,7 @@ object SubscriptionClient {
         }
 
         private fun Subscription.Command.satisfyCommandConditionOfWhileInSameVoiceChannel(member: Member?): Boolean {
-            return conditionPolicy != Plugin.Command.ConditionPolicy.WhileInSameVoiceChannel || member?.guild?.player?.currentVoiceChannel == member?.voiceState?.channel
+            return conditionPolicy != Plugin.Command.ConditionPolicy.WhileInSameVoiceChannel || member?.guild?.currentVoiceChannel == member?.voiceState?.channel
         }
 
         private fun Subscription.Command.satisfyCommandPermissionOfAdminOnly(event: net.dv8tion.jda.core.events.Event): Boolean {
@@ -385,17 +389,15 @@ object SubscriptionClient {
         }
 
         private fun Subscription.Command.satisfyCommandPermissionOfMainGuildAdminOnly(event: net.dv8tion.jda.core.events.Event): Boolean {
-            val guild = config.forGuild(
-                when (event) {
-                    is MessageReceivedEvent -> {
-                        event.guild
-                    }
-                    is MessageUpdateEvent -> {
-                        event.guild
-                    }
-                    else -> null
+            val guild = when (event) {
+                is MessageReceivedEvent -> {
+                    event.guild?.config
                 }
-            )
+                is MessageUpdateEvent -> {
+                    event.guild?.config
+                }
+                else -> null
+            }
             val isAdmin = when (event) {
                 is MessageReceivedEvent -> {
                     event.member?.isAdmin() ?: event.author.isGLaDOSOwner()
@@ -457,6 +459,10 @@ object SubscriptionClient {
         @Suppress("UNUSED_PARAMETER")
         @SubscribeEvent
         fun onReady(event: ReadyEvent) {
+            if (activeSubscriptions.isEmpty()) {
+                return
+            }
+
             launch {
                 while (isActive) {
                     try {
@@ -850,16 +856,21 @@ object SubscriptionClient {
     }
 
     object Web: EventListener {
+        lateinit var application: Application
         private val logger = SlackLogger("GLaDOS.SubscriptionClient.${javaClass.simpleName}")
 
         @Suppress("UNUSED_PARAMETER")
         @SubscribeEvent
         fun onReady(event: ReadyEvent) {
+            if (Page.activeSubscriptions.isEmpty() && ErrorPage.activeSubscriptions.isEmpty()) {
+                return
+            }
+
             Page.sortByPriority()
             ErrorPage.sortByPriority()
             Session.sortByPriority()
 
-            embeddedServer(Netty, config.web.port, config.web.host) {
+            embeddedServer(Netty, GLaDOS.config.web.port, GLaDOS.config.web.host) {
                 install(XForwardedHeaderSupport)
                 install(AutoHeadResponse)
                 install(DefaultHeaders) {
@@ -878,33 +889,6 @@ object SubscriptionClient {
 
                             val accessEvent = Plugin.Web.AccessEvent(this, null, emptyMap())
                             subscription.invoke(accessEvent, status)
-                        }
-                    }
-                }
-                install(CachingHeaders) {
-                    options { outgoingContent ->
-                        val (timezone, locale) = TimeZone.getTimeZone("GMT") to Locale.ROOT
-                        when (val contentType = outgoingContent.contentType?.withoutParameters() ?: return@options null) {
-                            // コンテンツ
-                            ContentType.Text.Html, ContentType.Text.Plain, ContentType.Application.Json, ContentType.Text.Xml -> {
-                                null
-                            }
-                            // ページアセット
-                            ContentType.Application.JavaScript, ContentType.Text.CSS, ContentType.Application.Navimap -> {
-                                CachingOptions(CacheControl.MaxAge(60 * 60 * 24 * 7), expires = GMTDate(Calendar.getInstance(timezone, locale).also { it.add(Calendar.DATE, 7) }.timeInMillis))
-                            }
-                            // メディア
-                            ContentType.Image.PNG, ContentType.Image.JPEG, ContentType.Image.GIF, ContentType.Image.SVG, ContentType.Image.XIcon, ContentType.Audio.OGG -> {
-                                CachingOptions(CacheControl.MaxAge(60 * 60 * 24 * 14), expires = GMTDate(Calendar.getInstance(timezone, locale).also { it.add(Calendar.DATE, 14) }.timeInMillis))
-                            }
-                            // フォント
-                            ContentType.Application.FontOtf, ContentType.Application.FontWoff, ContentType.Application.FontWoff2 -> {
-                                CachingOptions(CacheControl.MaxAge(60 * 60 * 24 * 21), expires = GMTDate(Calendar.getInstance(timezone, locale).also { it.add(Calendar.DATE, 21) }.timeInMillis))
-                            }
-                            else -> {
-                                logger.warn { "キャッシュが未定義のMimeTypeを検出しました: $contentType" }
-                                null
-                            }
                         }
                     }
                 }
@@ -960,6 +944,8 @@ object SubscriptionClient {
                         }
                     }
                 }
+
+                application = this
             }.start(wait = false)
         }
 
@@ -1014,7 +1000,7 @@ object SubscriptionClient {
                     val httpStatus = call.response.status() ?: HttpStatusCode.OK
                     val userAgent = call.request.userAgent().orEmpty()
                     val remoteHost = call.request.origin.remoteHost
-                    if (config.web.ignoreUserAgents.any { it in userAgent } || config.web.ignoreIpAddressRanges.any { it in remoteHost }) {
+                    if (GLaDOS.config.web.ignoreUserAgents.any { it in userAgent } || GLaDOS.config.web.ignoreIpAddressRanges.any { it in remoteHost }) {
                         return
                     }
 

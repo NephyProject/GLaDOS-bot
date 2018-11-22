@@ -4,9 +4,7 @@ import io.ktor.client.request.post
 import io.ktor.client.response.HttpResponse
 import io.ktor.http.ContentType
 import io.ktor.http.content.OutgoingContent
-import jp.nephy.glados.config
-import jp.nephy.glados.dispatcher
-import jp.nephy.glados.httpClient
+import jp.nephy.glados.GLaDOS
 import jp.nephy.jsonkt.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.io.ByteWriteChannel
@@ -20,7 +18,7 @@ object SlackWebhook: Closeable, CoroutineScope {
     private val masterJob = Job()
 
     override val coroutineContext: CoroutineContext
-        get() = dispatcher + masterJob
+        get() = GLaDOS.dispatcher + masterJob
 
     fun message(channel: String? = null, builder: MessageBuilder.() -> Unit): Job {
         return launch {
@@ -32,7 +30,7 @@ object SlackWebhook: Closeable, CoroutineScope {
         val requestBody = MessageBuilder(channel).apply(builder).build()
         repeat(3) {
             try {
-                httpClient.post<HttpResponse>(config.slackWebhookUrl) {
+                GLaDOS.httpClient.post<HttpResponse>(GLaDOS.config.slackWebhookUrl) {
                     body = requestBody
                 }
 

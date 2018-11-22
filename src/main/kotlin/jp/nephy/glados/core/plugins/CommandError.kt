@@ -1,9 +1,9 @@
 package jp.nephy.glados.core.plugins
 
-import jp.nephy.glados.core.extensions.launchAndDelete
-import jp.nephy.glados.core.extensions.message
-import jp.nephy.glados.core.extensions.messages.HexColor
-import jp.nephy.glados.core.extensions.reply
+import jp.nephy.glados.core.plugins.extensions.jda.launchAndDelete
+import jp.nephy.glados.core.plugins.extensions.jda.messages.message
+import jp.nephy.glados.core.plugins.extensions.jda.messages.HexColor
+import jp.nephy.glados.core.plugins.extensions.jda.messages.reply
 import net.dv8tion.jda.core.entities.Message
 import java.util.concurrent.TimeUnit
 
@@ -33,7 +33,7 @@ abstract class CommandError(val jdaMessage: Message, val commandName: String, va
     class Simple(jdaMessage: Message, commandName: String, description: String): CommandError(jdaMessage, commandName, description) {
         override fun sendErrorReport() {
             jdaMessage.message {
-                message {
+                text {
                     append("${jdaMessage.author.asMention} $description")
                 }
             }.launchAndDelete(30, TimeUnit.SECONDS)

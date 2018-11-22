@@ -7,7 +7,7 @@ import com.sedmelluq.discord.lavaplayer.track.AudioTrack
 import com.sedmelluq.discord.lavaplayer.track.AudioTrackEndReason
 import io.ktor.http.HttpStatusCode
 import io.ktor.sessions.CookieSessionBuilder
-import jp.nephy.glados.core.audio.player.GuildPlayer
+import jp.nephy.glados.core.GuildPlayer
 import net.dv8tion.jda.client.events.call.CallCreateEvent
 import net.dv8tion.jda.client.events.call.CallDeleteEvent
 import net.dv8tion.jda.client.events.call.GenericCallEvent

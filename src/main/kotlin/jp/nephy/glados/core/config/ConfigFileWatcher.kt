@@ -2,10 +2,8 @@ package jp.nephy.glados.core.config
 
 import io.methvin.watcher.DirectoryChangeEvent
 import io.methvin.watcher.DirectoryWatcher
-import jp.nephy.glados.config
+import jp.nephy.glados.GLaDOS
 import jp.nephy.glados.core.logger.SlackLogger
-import jp.nephy.glados.isDebugMode
-import jp.nephy.glados.secret
 import java.io.Closeable
 import java.nio.file.Files
 import java.nio.file.Paths
@@ -35,14 +33,14 @@ object ConfigFileWatcher: Closeable {
     private fun handleConfigFile(event: DirectoryChangeEvent) {
         val path = event.path()
         when {
-            !isDebugMode && Files.isSameFile(path, GLaDOSConfig.productionConfigPath) -> {
-                config = GLaDOSConfig.load(isDebugMode)
+            !GLaDOS.isDebugMode && Files.isSameFile(path, GLaDOSConfig.productionConfigPath) -> {
+                GLaDOS.config = GLaDOSConfig.load(GLaDOS.isDebugMode)
             }
-            isDebugMode && Files.isSameFile(path, GLaDOSConfig.developmentConfigPath) -> {
-                config = GLaDOSConfig.load(isDebugMode)
+            GLaDOS.isDebugMode && Files.isSameFile(path, GLaDOSConfig.developmentConfigPath) -> {
+                GLaDOS.config = GLaDOSConfig.load(GLaDOS.isDebugMode)
             }
             Files.isSameFile(path, SecretConfig.secretConfigPath) -> {
-                secret = SecretConfig.load()
+                GLaDOS.secret = SecretConfig.load()
             }
         }
     }

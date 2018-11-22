@@ -3,15 +3,13 @@ package jp.nephy.glados.core.plugins
 import io.ktor.application.ApplicationCall
 import io.ktor.application.call
 import io.ktor.util.pipeline.PipelineContext
-import jp.nephy.glados.config
+import jp.nephy.glados.GLaDOS
 import jp.nephy.glados.core.config.GLaDOSConfig
 import jp.nephy.glados.core.logger.SlackLogger
-import jp.nephy.glados.core.extensions.displayName
-import jp.nephy.glados.core.extensions.fullName
-import jp.nephy.glados.core.extensions.ifNullOrBlank
-import jp.nephy.glados.core.extensions.spaceRegex
-import jp.nephy.glados.core.extensions.web.SitemapUpdateFrequency
-import jp.nephy.glados.dispatcher
+import jp.nephy.glados.core.plugins.SubscriptionClient.Command.spaceRegex
+import jp.nephy.glados.core.plugins.extensions.jda.displayName
+import jp.nephy.glados.core.plugins.extensions.jda.fullName
+import jp.nephy.glados.core.plugins.extensions.web.meta.SitemapUpdateFrequency
 import jp.nephy.jsonkt.*
 import jp.nephy.penicillin.models.*
 import kotlinx.coroutines.CoroutineScope
@@ -29,18 +27,14 @@ import kotlin.reflect.full.findAnnotation
 abstract class Plugin(
     pluginName: String? = null, version: String? = null, val description: String? = null
 ): EventModel, CoroutineScope, Closeable {
-    val name = pluginName.ifNullOrBlank {
-        var name = javaClass.canonicalName
-        for (prefix in config.pluginsPackagePrefixes) {
-            name = name.removePrefix("$prefix.")
-        }
-        name
-    }
+    val name = pluginName?.ifBlank { null } ?: GLaDOS.config.pluginsPackagePrefixes.fold(javaClass.canonicalName) { s1, s2 ->
+        s1.removePrefix("$s2.")
+    }!!
     val fullname = "$name[v${version ?: "1.0.0.0"}]"
 
     private val job = Job()
     override val coroutineContext
-        get() = dispatcher + job
+        get() = GLaDOS.dispatcher + job
 
     val logger = SlackLogger("Plugin.$fullname")
 
@@ -55,6 +49,9 @@ abstract class Plugin(
 
     @Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION)
     annotation class Experimental
+
+    @Target(AnnotationTarget.CLASS)
+    annotation class Testable
 
     @Target(AnnotationTarget.FUNCTION)
     annotation class Event(

@@ -9,6 +9,6 @@ config.dev.json
 config.secret.json
 
 logs/
-tmp_debug/
+tmp/
 plugins/
 resources/

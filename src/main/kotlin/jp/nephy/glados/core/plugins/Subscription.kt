@@ -8,11 +8,14 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.request.httpMethod
 import io.ktor.request.path
 import io.ktor.util.pipeline.PipelineContext
-import jp.nephy.glados.config
+import jp.nephy.glados.GLaDOS
 import jp.nephy.glados.core.logger.SlackLogger
-import jp.nephy.glados.core.extensions.*
-import jp.nephy.glados.core.extensions.messages.HexColor
-import jp.nephy.glados.core.extensions.web.SitemapUpdateFrequency
+import jp.nephy.glados.core.plugins.extensions.invocationException
+import jp.nephy.glados.core.plugins.extensions.stackTraceString
+import jp.nephy.glados.core.plugins.extensions.jda.launchAndDelete
+import jp.nephy.glados.core.plugins.extensions.jda.messages.reply
+import jp.nephy.glados.core.plugins.extensions.jda.messages.HexColor
+import jp.nephy.glados.core.plugins.extensions.web.meta.SitemapUpdateFrequency
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
@@ -62,7 +65,7 @@ object Subscription {
                 logger.trace {
                     val layout = GraphLayout.parseInstance(instance)
 
-                    "${(processTimeNano / nano).round(3)} ms, ${(layout.totalSize() / megabytes).round(3)} MB で終了しました。"
+                    "${String.format("%.3f", processTimeNano / nano)} ms, ${String.format("%.${3}f", (layout.totalSize() / megabytes))} MB で終了しました。"
                 }
             }.onFailure { e ->
                 when (val exception = e.invocationException) {
@@ -119,7 +122,7 @@ object Subscription {
             get() = annotation.category.ifBlank { null }
 
         private val prefix: String
-            get() = annotation.prefix.ifBlank { config.prefix }
+            get() = annotation.prefix.ifBlank { GLaDOS.config.prefix }
         val commandSyntaxes: List<String>
             get() = commandNames.map { "$prefix$it" }
         val primaryCommandSyntax: String
@@ -192,7 +195,7 @@ object Subscription {
     }
 
     class Tweetstorm(annotation: Plugin.Tweetstorm, instance: Plugin, function: KFunction<*>): Element<Plugin.Tweetstorm>(annotation, instance, function) {
-        val accounts = annotation.accounts.map { config.twitterAccount(it) }
+        val accounts = annotation.accounts.map { GLaDOS.config.twitterAccount(it) }
 
         override val priority: Plugin.Priority
             get() = annotation.priority

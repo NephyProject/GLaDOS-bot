@@ -1,15 +1,14 @@
 package jp.nephy.glados.core.plugins
 
-import jp.nephy.glados.config
+import jp.nephy.glados.GLaDOS
 import jp.nephy.glados.core.logger.SlackLogger
-import jp.nephy.glados.core.extensions.round
-import jp.nephy.glados.dispatcher
-import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import java.io.File
 import java.net.JarURLConnection
 import java.nio.file.*
 import java.nio.file.attribute.BasicFileAttributes
+import kotlin.coroutines.CoroutineContext
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
 import kotlin.reflect.KVisibility
@@ -17,22 +16,40 @@ import kotlin.reflect.full.*
 import kotlin.reflect.jvm.kotlinFunction
 import kotlin.system.measureNanoTime
 
-object PluginManager {
+object PluginManager: CoroutineScope {
     private const val nano = 1000000.0
     private val logger = SlackLogger("GLaDOS.PluginManager")
 
+    override val coroutineContext: CoroutineContext
+        get() = GLaDOS.dispatcher
+
     suspend fun loadAll() {
+        var success = 0
+        var warn = 0
+        var error = 0
+        var total = 0
+
         val loadingTimeNano = measureNanoTime {
-            for (packagePrefix in config.pluginsPackagePrefixes) {
+            for (packagePrefix in GLaDOS.config.pluginsPackagePrefixes) {
                 FeatureClassLoader(packagePrefix).classes<Plugin>().map {
-                    GlobalScope.launch(dispatcher) {
+                    launch {
                         try {
+                            total++
+                            if (GLaDOS.isDebugMode && it.findAnnotation<Plugin.Testable>() == null) {
+                                logger.error { "${it.qualifiedName} はテスト可能ではありません。スキップします。" }
+                                error++
+                                return@launch
+                            }
+
                             val instance = it.objectInstance ?: it.createInstance().also {
                                 logger.warn { "${it.fullname} は object宣言ではなく class宣言されています。object宣言が推奨されています。" }
+                                warn++
                             }
                             ClassLoader(instance).load()
+                            success++
                         } catch (e: Throwable) {
                             logger.error(e.cause ?: e) { "${it.qualifiedName} のインスタンスの作成に失敗しました。" }
+                            error++
                         }
                     }
                 }.forEach {
@@ -41,7 +58,7 @@ object PluginManager {
             }
         }
 
-        logger.info { "${(loadingTimeNano / nano).round(3)} ms で Plugin のロードを完了しました。" }
+        logger.info { "${String.format("%.3f", loadingTimeNano / nano)} ms で Plugin のロードを完了しました。\n全Plugin: $total (ロード成功: $success / 警告: $warn / エラー: $error)" }
     }
 
     private class ClassLoader(private val instance: Plugin) {
@@ -94,6 +111,9 @@ object PluginManager {
                     if (function.isPublic()) {
                         SubscriptionClient.Command += Subscription.Command(annotation, instance, function).also {
                             logger.trace { "Command: ${it.fullname} をロードしました。" }
+                            if (it.description == null) {
+                                logger.warn { "Command: ${it.fullname} は description が設定されていません。" }
+                            }
                         }
                     }
                 } else {
