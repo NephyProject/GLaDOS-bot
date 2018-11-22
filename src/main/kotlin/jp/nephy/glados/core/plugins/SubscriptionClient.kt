@@ -31,6 +31,8 @@ import jp.nephy.glados.core.GuildPlayer
 import jp.nephy.glados.core.config.booleanOption
 import jp.nephy.glados.core.config.textChannel
 import jp.nephy.glados.core.plugins.extensions.config
+import jp.nephy.glados.core.plugins.extensions.hasAdminCapability
+import jp.nephy.glados.core.plugins.extensions.isGLaDOSOwner
 import jp.nephy.glados.core.plugins.extensions.jda.*
 import jp.nephy.glados.core.plugins.extensions.resourcePath
 import jp.nephy.glados.core.plugins.extensions.web.effectiveHost
@@ -364,7 +366,7 @@ object SubscriptionClient {
         }
 
         private fun satisfyCommandAvailabilityForGuildRequirement(guild: Guild?): Boolean {
-            return guild == null || guild.config?.booleanOption("enable_command") == true
+            return guild == null || guild.config.booleanOption("enable_command", false)
         }
 
         private fun Subscription.Command.satisfyCommandConditionOfWhileInAnyVoiceChannel(voiceState: GuildVoiceState?): Boolean {
@@ -378,10 +380,10 @@ object SubscriptionClient {
         private fun Subscription.Command.satisfyCommandPermissionOfAdminOnly(event: net.dv8tion.jda.core.events.Event): Boolean {
             val isAdmin = when (event) {
                 is MessageReceivedEvent -> {
-                    event.member?.isAdmin() ?: event.author.isGLaDOSOwner()
+                    event.member?.hasAdminCapability() ?: event.author?.hasAdminCapability()
                 }
                 is MessageUpdateEvent -> {
-                    event.member?.isAdmin() ?: event.author.isGLaDOSOwner()
+                    event.member?.hasAdminCapability() ?: event.author?.hasAdminCapability()
                 }
                 else -> null
             } ?: false
@@ -400,10 +402,10 @@ object SubscriptionClient {
             }
             val isAdmin = when (event) {
                 is MessageReceivedEvent -> {
-                    event.member?.isAdmin() ?: event.author.isGLaDOSOwner()
+                    event.member?.hasAdminCapability() ?: event.author?.hasAdminCapability()
                 }
                 is MessageUpdateEvent -> {
-                    event.member?.isAdmin() ?: event.author.isGLaDOSOwner()
+                    event.member?.hasAdminCapability() ?: event.author?.hasAdminCapability()
                 }
                 else -> null
             } ?: false
@@ -413,10 +415,10 @@ object SubscriptionClient {
         private fun Subscription.Command.satisfyCommandPermissionOfOwnerOnly(event: net.dv8tion.jda.core.events.Event): Boolean {
             val isGLaDOSOwner = when (event) {
                 is MessageReceivedEvent -> {
-                    event.author.isGLaDOSOwner()
+                    event.author.isGLaDOSOwner
                 }
                 is MessageUpdateEvent -> {
-                    event.author.isGLaDOSOwner()
+                    event.author.isGLaDOSOwner
                 }
                 else -> false
             }

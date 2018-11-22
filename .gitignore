@@ -10,5 +10,4 @@ config.secret.json
 
 logs/
 tmp/
-plugins/
 resources/
