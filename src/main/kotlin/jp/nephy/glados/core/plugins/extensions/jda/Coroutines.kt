@@ -1,6 +1,6 @@
 package jp.nephy.glados.core.plugins.extensions.jda
 
-import jp.nephy.glados.GLaDOS.dispatcher
+import jp.nephy.glados.GLaDOS
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -17,7 +17,7 @@ suspend fun <T> RestAction<T>.await() = suspendCancellableCoroutine<T> {
     it.resumeWith(result)
 }
 
-fun <T> RestAction<T>.launch(timeout: Long = 0, unit: TimeUnit = TimeUnit.SECONDS, callback: suspend (T) -> Unit = {}) = GlobalScope.launch(dispatcher) {
+fun <T> RestAction<T>.launch(timeout: Long = 0, unit: TimeUnit = TimeUnit.SECONDS, callback: suspend (T) -> Unit = {}) = GlobalScope.launch(GLaDOS.dispatcher) {
     try {
         await().also {
             delay(unit.toMillis(timeout))

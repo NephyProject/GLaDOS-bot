@@ -1,7 +1,7 @@
 package jp.nephy.glados.core.plugins.extensions.jda.messages
 
 import com.jagrosh.jdautilities.commons.waiter.EventWaiter
-import jp.nephy.glados.GLaDOS.dispatcher
+import jp.nephy.glados.GLaDOS
 import jp.nephy.glados.core.plugins.Plugin
 import jp.nephy.glados.core.plugins.extensions.jda.messages.prompt.PromptBuilder
 import kotlinx.coroutines.GlobalScope
@@ -63,19 +63,18 @@ inline fun TextChannel.prompt(to: Member, operation: PromptBuilder.() -> Unit) {
 inline fun <reified T: Event> EventWaiter.wait(noinline condition: T.() -> Boolean = { true }, timeout: Long? = null, noinline whenTimeout: () -> Unit = { }, noinline operation: T.() -> Unit) {
     var stop = false
     if (timeout != null) {
-        GlobalScope.launch(dispatcher) {
+        GlobalScope.launch(GLaDOS.dispatcher) {
             delay(timeout)
             stop = true
             whenTimeout()
         }
     }
 
-    waitForEvent(T::class.java, {
-        !stop && condition(it)
-    }, {
-                     if (stop) {
-                         return@waitForEvent
-                     }
-                     operation(it)
-                 })
+    waitForEvent(T::class.java, { !stop && condition(it) }) {
+        if (stop) {
+            return@waitForEvent
+        }
+
+        operation(it)
+    }
 }

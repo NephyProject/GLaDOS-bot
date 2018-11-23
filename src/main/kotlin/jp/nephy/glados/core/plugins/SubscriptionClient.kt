@@ -23,25 +23,23 @@ import io.ktor.sessions.cookie
 import io.ktor.util.AttributeKey
 import io.ktor.util.pipeline.PipelineContext
 import jp.nephy.glados.GLaDOS
-import jp.nephy.glados.GLaDOS.config
-import jp.nephy.glados.GLaDOS.dispatcher
-import jp.nephy.glados.core.config.GLaDOSConfig
-import jp.nephy.glados.core.logger.SlackLogger
 import jp.nephy.glados.core.GuildPlayer
+import jp.nephy.glados.core.config.GLaDOSConfig
 import jp.nephy.glados.core.config.booleanOption
 import jp.nephy.glados.core.config.textChannel
+import jp.nephy.glados.core.logger.SlackLogger
 import jp.nephy.glados.core.plugins.extensions.config
 import jp.nephy.glados.core.plugins.extensions.hasAdminCapability
 import jp.nephy.glados.core.plugins.extensions.isGLaDOSOwner
 import jp.nephy.glados.core.plugins.extensions.jda.*
+import jp.nephy.glados.core.plugins.extensions.jda.messages.HexColor
+import jp.nephy.glados.core.plugins.extensions.jda.messages.edit
+import jp.nephy.glados.core.plugins.extensions.jda.messages.prompt
+import jp.nephy.glados.core.plugins.extensions.jda.messages.prompt.PromptEmoji
+import jp.nephy.glados.core.plugins.extensions.jda.messages.reply
 import jp.nephy.glados.core.plugins.extensions.resourcePath
 import jp.nephy.glados.core.plugins.extensions.web.effectiveHost
 import jp.nephy.glados.core.plugins.extensions.web.url
-import jp.nephy.glados.core.plugins.extensions.jda.messages.HexColor
-import jp.nephy.glados.core.plugins.extensions.jda.messages.prompt.PromptEmoji
-import jp.nephy.glados.core.plugins.extensions.jda.messages.edit
-import jp.nephy.glados.core.plugins.extensions.jda.messages.prompt
-import jp.nephy.glados.core.plugins.extensions.jda.messages.reply
 import jp.nephy.jsonkt.*
 import jp.nephy.penicillin.core.streaming.UserStreamListener
 import jp.nephy.penicillin.models.*
@@ -90,7 +88,7 @@ object SubscriptionClient {
         protected val logger = SlackLogger("GLaDOS.SubscriptionClient.${javaClass.simpleName}")
 
         private val job = Job()
-        final override val coroutineContext = dispatcher + job
+        final override val coroutineContext = GLaDOS.dispatcher + job
 
         private val subscriptionsMutex = Mutex()
         private val subscriptions = mutableListOf<S>()
@@ -497,7 +495,7 @@ object SubscriptionClient {
     class AudioEvent private constructor(private val guildPlayer: GuildPlayer): Client<Plugin.Event, Subscription.Event>(), AudioEventListener {
         companion object: CoroutineScope {
             override val coroutineContext: CoroutineContext
-                get() = dispatcher
+                get() = GLaDOS.dispatcher
 
             private val subscriptionsMutex = Mutex()
             private val subscriptions = mutableListOf<Subscription.Event>()
@@ -545,7 +543,7 @@ object SubscriptionClient {
     class ReceiveAudio private constructor(private val guildPlayer: GuildPlayer): Client<Plugin.Event, Subscription.Event>(), AudioReceiveHandler {
         companion object: CoroutineScope {
             override val coroutineContext: CoroutineContext
-                get() = dispatcher
+                get() = GLaDOS.dispatcher
 
             private val subscriptionsMutex = Mutex()
             private val subscriptions = mutableListOf<Subscription.Event>()
@@ -593,7 +591,7 @@ object SubscriptionClient {
     class ConnectionEvent private constructor(val guild: Guild): Client<Plugin.Event, Subscription.Event>(), ConnectionListener {
         companion object: CoroutineScope {
             override val coroutineContext: CoroutineContext
-                get() = dispatcher
+                get() = GLaDOS.dispatcher
 
             private val subscriptionsMutex = Mutex()
             private val subscriptions = mutableListOf<Subscription.Event>()
@@ -974,7 +972,7 @@ object SubscriptionClient {
 
                 suspend fun PipelineContext<Unit, ApplicationCall>.handleResources(): Boolean {
                     val path = call.request.path()
-                    if (config.web.staticResourcePatterns.none { it.containsMatchIn(path) }) {
+                    if (GLaDOS.config.web.staticResourcePatterns.none { it.containsMatchIn(path) }) {
                         return false
                     }
 
