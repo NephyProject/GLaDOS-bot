@@ -1,8 +1,21 @@
 package jp.nephy.glados.core.plugins.extensions.web
 
 import jp.nephy.glados.core.plugins.Plugin
+import kotlinx.serialization.json.toBooleanStrictOrNull
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
+
+fun Plugin.Web.AccessEvent.booleanQuery(key: String? = null, default: () -> Boolean) = object: ReadOnlyProperty<Any?, Boolean> {
+    override fun getValue(thisRef: Any?, property: KProperty<*>): Boolean {
+        return this@booleanQuery.call.request.queryParameters[key ?: property.name]?.toBooleanStrictOrNull() ?: default()
+    }
+}
+
+fun Plugin.Web.AccessEvent.booleanQuery(key: String? = null) = object: ReadOnlyProperty<Any?, Boolean?> {
+    override fun getValue(thisRef: Any?, property: KProperty<*>): Boolean? {
+        return this@booleanQuery.call.request.queryParameters[key ?: property.name]?.toBooleanStrictOrNull()
+    }
+}
 
 fun Plugin.Web.AccessEvent.intQuery(key: String? = null, default: () -> Int) = object: ReadOnlyProperty<Any?, Int> {
     override fun getValue(thisRef: Any?, property: KProperty<*>): Int {
