@@ -4,35 +4,33 @@ package jp.nephy.glados.core.plugins.extensions
 
 import jp.nephy.glados.core.plugins.CommandError
 import jp.nephy.glados.core.plugins.Plugin
+import jp.nephy.glados.core.plugins.extensions.jda.messages.HexColor
 import jp.nephy.glados.core.plugins.extensions.jda.messages.message
 import jp.nephy.glados.core.plugins.extensions.jda.messages.reply
-import jp.nephy.glados.core.plugins.extensions.jda.messages.HexColor
-import net.dv8tion.jda.core.entities.*
+import net.dv8tion.jda.core.entities.Message
 import net.dv8tion.jda.core.requests.restaction.MessageAction
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.contract
 
 @UseExperimental(ExperimentalContracts::class)
-inline fun Plugin.reject(value: Boolean, fallback: () -> Any?) {
+inline fun Plugin.reject(value: Boolean, fallback: () -> Nothing) {
     contract {
         returns() implies !value
     }
 
     if (value) {
         fallback()
-        throw IllegalStateException()
     }
 }
 
 @UseExperimental(ExperimentalContracts::class)
-inline fun <T> Plugin.rejectNull(value: T?, fallback: () -> Any?) {
+inline fun <T> Plugin.rejectNull(value: T?, fallback: () -> Nothing) {
     contract {
         returns() implies (value != null)
     }
 
     if (value == null) {
         fallback()
-        throw IllegalStateException()
     }
 }
 
@@ -40,9 +38,9 @@ inline fun Message.embedError(commandName: String, description: () -> String): N
 
 inline fun Message.simpleError(commandName: String, description: StringBuilder.() -> Unit): Nothing = throw CommandError.Simple(this, commandName, buildString(description))
 
-inline fun Plugin.Command.Event.embedError(description: () -> String): Nothing = throw CommandError.Simple(message, command.primaryCommandSyntax, description.invoke())
+inline fun Plugin.Command.Event.embedError(description: () -> String): Nothing = throw CommandError.Embed(message, command.primaryCommandSyntax, description.invoke())
 
-inline fun Plugin.Command.Event.simpleError(description: StringBuilder.() -> Unit): Nothing = throw CommandError.Embed(message, command.primaryCommandSyntax, buildString(description))
+inline fun Plugin.Command.Event.simpleError(description: StringBuilder.() -> Unit): Nothing = throw CommandError.Simple(message, command.primaryCommandSyntax, buildString(description))
 
 fun Message.embedResult(commandName: String, description: () -> String): MessageAction {
     return reply {
