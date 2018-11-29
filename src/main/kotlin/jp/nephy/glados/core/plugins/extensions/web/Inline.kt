@@ -6,26 +6,32 @@ import kotlinx.io.charsets.Charset
 
 private val minifyRegex = "(\\s{2,}|\\n)".toRegex()
 
-private fun staticFile(path: String, charset: Charset): String {
+private fun staticFile(path: String, minified: Boolean, charset: Charset): String {
     val paths = path.removePrefix("/").removeSuffix("/").split("/").toTypedArray()
 
     return runCatching {
         resourceFile("static", *paths).readText(charset)
-    }.getOrNull()?.replace(minifyRegex, "").orEmpty()
+    }.getOrNull()?.let {
+        if (minified) {
+            it.replace(minifyRegex, "")
+        } else {
+            it
+        }
+    }.orEmpty()
 }
 
-fun FlowOrMetaDataContent.inlineCSS(path: String, charset: Charset = Charsets.UTF_8) {
+fun FlowOrMetaDataContent.inlineCSS(path: String, minified: Boolean = true, charset: Charset = Charsets.UTF_8) {
     style {
         unsafe {
-            +staticFile(path, charset)
+            +staticFile(path, minified, charset)
         }
     }
 }
 
-fun FlowOrPhrasingOrMetaDataContent.inlineJS(path: String, async: Boolean = false, defer: Boolean = false, type: String? = null, charset: Charset = Charsets.UTF_8) {
+fun FlowOrPhrasingOrMetaDataContent.inlineJS(path: String, async: Boolean = false, defer: Boolean = false, type: String? = null, minified: Boolean = true, charset: Charset = Charsets.UTF_8) {
     script(async = async, defer = defer, type = type) {
         unsafe {
-            +staticFile(path, charset)
+            +staticFile(path, minified, charset)
         }
     }
 }
