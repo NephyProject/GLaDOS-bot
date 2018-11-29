@@ -53,6 +53,9 @@ abstract class Plugin(
     @Target(AnnotationTarget.CLASS)
     annotation class Testable
 
+    @Target(AnnotationTarget.CLASS)
+    annotation class TestOnly
+
     @Target(AnnotationTarget.FUNCTION)
     annotation class Event(
         val priority: Priority = Priority.Normal
