@@ -7,7 +7,9 @@ import io.ktor.application.*
 import io.ktor.features.*
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
+import io.ktor.request.httpMethod
 import io.ktor.request.path
 import io.ktor.request.userAgent
 import io.ktor.response.respond
@@ -37,7 +39,7 @@ import jp.nephy.glados.core.plugins.extensions.jda.messages.edit
 import jp.nephy.glados.core.plugins.extensions.jda.messages.prompt
 import jp.nephy.glados.core.plugins.extensions.jda.messages.prompt.PromptEmoji
 import jp.nephy.glados.core.plugins.extensions.jda.messages.reply
-import jp.nephy.glados.core.plugins.extensions.resourcePath
+import jp.nephy.glados.core.plugins.extensions.resourceFile
 import jp.nephy.glados.core.plugins.extensions.web.effectiveHost
 import jp.nephy.glados.core.plugins.extensions.web.url
 import jp.nephy.jsonkt.*
@@ -955,10 +957,6 @@ object SubscriptionClient {
             override fun install(pipeline: ApplicationCallPipeline, configure: Configuration.() -> Unit): DynamicResolver {
                 return DynamicResolver.apply {
                     pipeline.intercept(ApplicationCallPipeline.Call) {
-                        if (handleResources()) {
-                            return@intercept
-                        }
-
                         handleRequest()
                     }
                 }
@@ -970,29 +968,31 @@ object SubscriptionClient {
                 private val accessLogger = SlackLogger("GLaDOS.Web.Access", channelName = "#web-access")
                 private val accessStaticLogger = SlackLogger("GLaDOS.Web.AccessStatic", channelName = "#web-access-static")
 
-                suspend fun PipelineContext<Unit, ApplicationCall>.handleResources(): Boolean {
-                    val path = call.request.path()
-                    if (GLaDOS.config.web.staticResourcePatterns.none { it.containsMatchIn(path) }) {
-                        return false
-                    }
-
-                    val file = resourcePath("static", path.removePrefix("/")).toFile()
-                    if (!file.exists()) {
-                        return false
-                    }
-
-                    call.respondFile(file)
-                    callLogging(accessStaticLogger)
-                    return true
-                }
-
                 suspend fun PipelineContext<Unit, ApplicationCall>.handleRequest() {
+                    val host = call.request.effectiveHost
+                    val path = call.request.path().removePrefix("/").removeSuffix("/")
+
+                    if (call.request.httpMethod == HttpMethod.Get) {
+                        val searchPaths = listOf(
+                            arrayOf(host, path), arrayOf(host, path, "index.html"), arrayOf(path)
+                        )
+                        val file = searchPaths.map { resourceFile("static", *it) }.firstOrNull { it.isFile && it.exists() }
+                        if (file != null) {
+                            call.respondFile(file)
+                            callLogging(accessStaticLogger)
+                            return
+                        }
+                    }
+
                     val routing = Page.activeSubscriptions.find { it.canHandle(call) } ?: return
                     val event = routing.makeEvent(this)
 
-                    if (routing.invoke(event)) {
-                        callLogging(accessLogger)
-                        return
+                    if (call.request.httpMethod != HttpMethod.Options) {
+                        if (routing.invoke(event)) {
+                            callLogging(accessLogger)
+                        }
+                    } else {
+                        call.respond(HttpStatusCode.OK, "")
                     }
                 }
 

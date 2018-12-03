@@ -11,10 +11,10 @@ import io.ktor.util.pipeline.PipelineContext
 import jp.nephy.glados.GLaDOS
 import jp.nephy.glados.core.logger.SlackLogger
 import jp.nephy.glados.core.plugins.extensions.invocationException
-import jp.nephy.glados.core.plugins.extensions.stackTraceString
 import jp.nephy.glados.core.plugins.extensions.jda.launchAndDelete
-import jp.nephy.glados.core.plugins.extensions.jda.messages.reply
 import jp.nephy.glados.core.plugins.extensions.jda.messages.HexColor
+import jp.nephy.glados.core.plugins.extensions.jda.messages.reply
+import jp.nephy.glados.core.plugins.extensions.stackTraceString
 import jp.nephy.glados.core.plugins.extensions.web.meta.SitemapUpdateFrequency
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
@@ -233,7 +233,7 @@ object Subscription {
             }.orEmpty()
 
             fun canHandle(call: ApplicationCall): Boolean {
-                if (!matchParameters(Plugin.Web.AccessEvent::class) || call.request.httpMethod !in httpMethods || (domain != null && domain != call.request.origin.host)) {
+                if (!matchParameters(Plugin.Web.AccessEvent::class) || (call.request.httpMethod !in httpMethods && call.request.httpMethod != HttpMethod.Options) || (domain != null && domain != call.request.origin.host)) {
                     return false
                 }
 
