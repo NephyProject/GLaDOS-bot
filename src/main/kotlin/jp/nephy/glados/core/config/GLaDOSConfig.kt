@@ -58,7 +58,6 @@ data class GLaDOSConfig(override val json: JsonObject): JsonModel {
     data class Web(override val json: JsonObject): JsonModel {
         val host by string { "127.0.0.1" }
         val port by int { 8080 }
-        val staticResourcePatterns by lambdaList("static_resource_patterns") { it.string.toRegex() }
         val ignoreIpAddressRanges by lambdaList("ignore_ip_address_ranges") { it.string.toRegex() }
         val ignoreUserAgents by lambdaList("ignore_user_agents") { it.string.toRegex() }
     }
