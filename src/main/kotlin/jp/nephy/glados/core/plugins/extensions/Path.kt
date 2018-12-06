@@ -18,7 +18,10 @@ inline fun tmpPath(first: String, vararg more: String, block: Path.() -> Unit = 
     }
 
     if (more.isNotEmpty()) {
-        Files.createDirectories(Paths.get(GLaDOS.tmpDir.toString(), first, *more.dropLast(1).toTypedArray()))
+        val parentDirectory = Paths.get(GLaDOS.tmpDir.toString(), first, *more.dropLast(1).toTypedArray())
+        if (!Files.exists(parentDirectory)) {
+            Files.createDirectories(parentDirectory)
+        }
     }
 
     return Paths.get(GLaDOS.tmpDir.toString(), first, *more).apply(block)
@@ -29,13 +32,5 @@ inline fun resourceFile(first: String, vararg more: String, block: File.() -> Un
 }
 
 inline fun resourcePath(first: String, vararg more: String, block: Path.() -> Unit = {}): Path {
-    if (!Files.exists(GLaDOS.resourceDir)) {
-        Files.createDirectory(GLaDOS.resourceDir)
-    }
-
-    if (more.isNotEmpty()) {
-        Files.createDirectories(Paths.get(GLaDOS.resourceDir.toString(), first, *more.dropLast(1).toTypedArray()))
-    }
-
     return Paths.get(GLaDOS.resourceDir.toString(), first, *more).apply(block)
 }
