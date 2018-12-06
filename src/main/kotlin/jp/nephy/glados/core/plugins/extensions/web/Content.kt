@@ -35,14 +35,14 @@ suspend inline fun <T: Template<HTML>> ApplicationCall.respondMinifiedHtmlTempla
     respondMinifiedHtml(status) { with(template) { apply() } }
 }
 
-suspend inline fun ApplicationCall.respondJsonModel(model: JsonModel) {
-    respondJsonObject { model.json }
+suspend inline fun ApplicationCall.respondJsonModel(model: JsonModel, status: HttpStatusCode? = null) {
+    respondJsonObject(status) { model.json }
 }
 
-suspend inline fun ApplicationCall.respondJsonObject(block: () -> Map<String, Any?>) {
-    respondText(block().toJsonString(), ContentType.Application.Json)
+suspend inline fun ApplicationCall.respondJsonObject(status: HttpStatusCode? = null, block: () -> Map<String, Any?>) {
+    respondText(block().toJsonString(), ContentType.Application.Json, status)
 }
 
-suspend inline fun ApplicationCall.respondJsonArray(block: () -> Iterable<Map<String, Any?>>) {
-    respondText(block().toJsonArray().toJsonString(), ContentType.Application.Json)
+suspend inline fun ApplicationCall.respondJsonArray(status: HttpStatusCode? = null, block: () -> Iterable<Map<String, Any?>>) {
+    respondText(block().toJsonArray().toJsonString(), ContentType.Application.Json, status)
 }
