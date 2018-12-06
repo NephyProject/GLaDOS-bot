@@ -4,8 +4,7 @@ import jp.nephy.glados.core.plugins.extensions.resourceFile
 import kotlinx.html.*
 import kotlinx.io.charsets.Charset
 
-private val minifyRegex = "(\\s{2,}|\\n)".toRegex()
-
+private val minifyRegex = "(?:\\s{2,}|\\n)".toRegex()
 private fun staticFile(path: String, minified: Boolean, charset: Charset): String {
     val paths = path.removePrefix("/").removeSuffix("/").split("/").toTypedArray()
 
@@ -33,5 +32,11 @@ fun FlowOrPhrasingOrMetaDataContent.inlineJS(path: String, async: Boolean = fals
         unsafe {
             +staticFile(path, minified, charset)
         }
+    }
+}
+
+fun FlowContent.inlineHTML(path: String, minified: Boolean = true, charset: Charset = Charsets.UTF_8) {
+    consumer.onTagContentUnsafe {
+        +staticFile(path, minified, charset)
     }
 }
