@@ -35,9 +35,21 @@ fun TextChannel.getHistory(limit: Int): List<Message> {
     return iterableHistory.cache(false).take(limit)
 }
 
+fun Member.addRole(id: Long) {
+    if (!hasRole(id)) {
+        guild.controller.addSingleRoleToMember(this, jda.getRoleById(id)).launch()
+    }
+}
+
 fun Member.addRole(role: Role) {
     if (!hasRole(role)) {
         guild.controller.addSingleRoleToMember(this, role).launch()
+    }
+}
+
+fun Member.removeRole(id: Long) {
+    if (hasRole(id)) {
+        guild.controller.removeSingleRoleFromMember(this, jda.getRoleById(id)).launch()
     }
 }
 
