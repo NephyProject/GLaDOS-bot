@@ -112,7 +112,7 @@ object Subscription {
 
         val primaryCommandName: String
             get() = annotation.command.ifBlank { name }
-        private val commandNames: List<String>
+        val commandNames: List<String>
             get() = listOf(primaryCommandName) + annotation.aliases
         val description: String?
             get() = annotation.description.ifBlank { null }
