@@ -68,7 +68,7 @@ abstract class Plugin(
         val priority: Priority = Priority.Normal,
         val permission: PermissionPolicy = PermissionPolicy.Anyone,
         val channelType: TargetChannelType = TargetChannelType.Any,
-        val case: CasePolicy = CasePolicy.Strict,
+        val case: CasePolicy = CasePolicy.Ignore,
         val condition: ConditionPolicy = ConditionPolicy.Anytime,
         val description: String = "",
         val args: Array<String> = [],
