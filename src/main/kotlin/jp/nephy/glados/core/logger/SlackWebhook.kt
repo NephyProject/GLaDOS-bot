@@ -1,5 +1,7 @@
 package jp.nephy.glados.core.logger
 
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.apache.Apache
 import io.ktor.client.request.post
 import io.ktor.client.response.HttpResponse
 import io.ktor.http.ContentType
@@ -14,7 +16,8 @@ import java.io.Closeable
 import kotlin.coroutines.CoroutineContext
 
 object SlackWebhook: Closeable, CoroutineScope {
-    private val logger = KotlinLogging.logger("SlackWebhook")
+    private val logger = KotlinLogging.logger("GLaDOS.logger.SlackWebhook")
+    private val httpClient = HttpClient(Apache)
     private val masterJob = Job()
 
     override val coroutineContext: CoroutineContext
@@ -30,7 +33,7 @@ object SlackWebhook: Closeable, CoroutineScope {
         val requestBody = MessageBuilder(channel).apply(builder).build()
         repeat(3) {
             try {
-                GLaDOS.httpClient.post<HttpResponse>(GLaDOS.config.slackWebhookUrl) {
+                httpClient.post<HttpResponse>(GLaDOS.config.slackWebhookUrl) {
                     body = requestBody
                 }
 
@@ -38,7 +41,7 @@ object SlackWebhook: Closeable, CoroutineScope {
             } catch (e: CancellationException) {
                 return false
             } catch (e: Throwable) {
-                logger.error(e) { "Sending payload to Slack was failed. (${it + 1}/3)" }
+                logger.error(e) { "ペイロードの送信に失敗しました。(${it + 1}/3)" }
             }
 
             try {
@@ -104,6 +107,7 @@ object SlackWebhook: Closeable, CoroutineScope {
     }
 
     override fun close() {
+        httpClient.close()
         runBlocking {
             masterJob.cancelChildren()
             masterJob.cancelAndJoin()

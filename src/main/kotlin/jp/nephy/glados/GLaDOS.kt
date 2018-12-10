@@ -4,9 +4,13 @@ import com.jagrosh.jdautilities.commons.waiter.EventWaiter
 import com.sedmelluq.discord.lavaplayer.jdaudp.NativeAudioSendFactory
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.apache.Apache
+import io.ktor.client.features.UserAgent
 import jp.nephy.glados.core.config.ConfigFileWatcher
 import jp.nephy.glados.core.config.GLaDOSConfig
 import jp.nephy.glados.core.config.SecretConfig
+import jp.nephy.glados.core.logger.HttpClientLogger
+import jp.nephy.glados.core.logger.LogCategory
+import jp.nephy.glados.core.logger.SlackLogger
 import jp.nephy.glados.core.plugins.SubscriptionClient
 import kotlinx.coroutines.ExecutorCoroutineDispatcher
 import kotlinx.coroutines.ObsoleteCoroutinesApi
@@ -46,7 +50,24 @@ object GLaDOS {
 
         config = GLaDOSConfig.load(isDebugMode)
         dispatcher = newFixedThreadPoolContext(config.parallelism, "GLaDOS-Worker")
-        httpClient = HttpClient(Apache)
+        httpClient = HttpClient(Apache) {
+            install(UserAgent) {
+                agent = userAgent
+            }
+
+            install(HttpClientLogger) {
+                if (isDebugMode) {
+                    all()
+                } else {
+                    of(LogCategory.Summary)
+                }
+
+                val logger = SlackLogger("GLaDOS.HttpClient", "#glados-http-client")
+                onMessage {
+                    logger.info { it }
+                }
+            }
+        }
 
         secret = SecretConfig.load()
 
