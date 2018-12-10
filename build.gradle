@@ -64,7 +64,7 @@ dependencies {
     /* Twitter */
     compile "jp.nephy:penicillin:3.2.2"
     compile "jp.nephy:jsonkt:4.1"
-    compile "org.jetbrains.kotlinx:kotlinx-serialization-runtime:0.9.0"
+    compile "org.jetbrains.kotlinx:kotlinx-serialization-runtime:0.9.1"
 
     /* Database */
     compile "org.litote.kmongo:kmongo:3.9.0"
@@ -72,13 +72,14 @@ dependencies {
     /* Web Server & Client */
     compile "io.ktor:ktor-server-netty:$ktor_version"
     compile "io.ktor:ktor-html-builder:$ktor_version"
+    compile "io.ktor:ktor-metrics:$ktor_version"
     compile "io.ktor:ktor-client-apache:$ktor_version"
 
     /* Hot reloading */
     compile "io.methvin:directory-watcher:0.9.0"
 
     /* Logging */
-    compile "io.github.microutils:kotlin-logging:1.6.20"
+    compile "io.github.microutils:kotlin-logging:1.6.22"
     compile "ch.qos.logback:logback-core:1.2.3"
     compile "ch.qos.logback:logback-classic:1.2.3"
     compile "org.fusesource.jansi:jansi:1.17.1"

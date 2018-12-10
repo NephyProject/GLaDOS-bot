@@ -2,6 +2,7 @@
 
 package jp.nephy.glados.core.plugins
 
+import com.codahale.metrics.Slf4jReporter
 import com.sedmelluq.discord.lavaplayer.player.event.*
 import io.ktor.application.*
 import io.ktor.features.*
@@ -9,6 +10,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
+import io.ktor.metrics.Metrics
 import io.ktor.request.httpMethod
 import io.ktor.request.path
 import io.ktor.request.userAgent
@@ -48,6 +50,7 @@ import jp.nephy.penicillin.models.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import mu.KotlinLogging
 import net.dv8tion.jda.core.JDABuilder
 import net.dv8tion.jda.core.audio.AudioReceiveHandler
 import net.dv8tion.jda.core.audio.CombinedAudio
@@ -879,6 +882,12 @@ object SubscriptionClient {
                     header(HttpHeaders.Server, "GLaDOS-bot")
                     header("X-Powered-By", "GLaDOS-bot (+https://github.com/NephyProject/GLaDOS-bot)")
                 }
+                install(Metrics) {
+                    if (GLaDOS.isDebugMode) {
+                        val log = KotlinLogging.logger("GLaDOS.SubscriptionClient.Web.Metrics")
+                        Slf4jReporter.forRegistry(registry).outputTo(log).convertRatesTo(TimeUnit.SECONDS).convertDurationsTo(TimeUnit.MILLISECONDS).build().start(10, TimeUnit.SECONDS)
+                    }
+                }
                 install(StatusPages) {
                     exception<Exception> { e ->
                         logger.error(e) { "Internal server error occurred." }
@@ -965,8 +974,8 @@ object SubscriptionClient {
             private object Configuration
 
             object DynamicResolver {
-                private val accessLogger = SlackLogger("GLaDOS.Web.Access", channelName = "#web-access")
-                private val accessStaticLogger = SlackLogger("GLaDOS.Web.AccessStatic", channelName = "#web-access-static")
+                private val accessLogger = SlackLogger("GLaDOS.Web.Access", channelName = "#glados-web")
+                private val accessStaticLogger = SlackLogger("GLaDOS.Web.AccessStatic", channelName = "#glados-web-static")
 
                 suspend fun PipelineContext<Unit, ApplicationCall>.handleRequest() {
                     val host = call.request.effectiveHost
