@@ -8,9 +8,7 @@ import io.ktor.client.features.UserAgent
 import jp.nephy.glados.core.config.ConfigFileWatcher
 import jp.nephy.glados.core.config.GLaDOSConfig
 import jp.nephy.glados.core.config.SecretConfig
-import jp.nephy.glados.core.logger.HttpClientLogger
-import jp.nephy.glados.core.logger.LogCategory
-import jp.nephy.glados.core.logger.SlackLogger
+import jp.nephy.glados.core.logger.installDefaultLogger
 import jp.nephy.glados.core.plugins.SubscriptionClient
 import kotlinx.coroutines.ExecutorCoroutineDispatcher
 import kotlinx.coroutines.ObsoleteCoroutinesApi
@@ -55,18 +53,7 @@ object GLaDOS {
                 agent = userAgent
             }
 
-            install(HttpClientLogger) {
-                if (isDebugMode) {
-                    all()
-                } else {
-                    of(LogCategory.Summary)
-                }
-
-                val logger = SlackLogger("GLaDOS.HttpClient", "#glados-http-client")
-                onMessage {
-                    logger.info { it }
-                }
-            }
+            installDefaultLogger()
         }
 
         secret = SecretConfig.load()

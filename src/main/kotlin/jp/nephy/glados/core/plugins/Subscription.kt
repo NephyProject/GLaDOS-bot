@@ -19,7 +19,6 @@ import jp.nephy.glados.core.plugins.extensions.web.meta.SitemapUpdateFrequency
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
-import org.openjdk.jol.info.GraphLayout
 import java.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.reflect.KClass
@@ -62,11 +61,7 @@ object Subscription {
                     function.callSuspend(instance, *args)
                 }
 
-                logger.trace {
-                    val layout = GraphLayout.parseInstance(instance)
-
-                    "${String.format("%.3f", processTimeNano / nano)} ms, ${String.format("%.${3}f", (layout.totalSize() / megabytes))} MB で終了しました。"
-                }
+                logger.trace { "${String.format("%.3f", processTimeNano / nano)} ms で終了しました。" }
             }.onFailure { e ->
                 when (val exception = e.invocationException) {
                     is CancellationException -> {

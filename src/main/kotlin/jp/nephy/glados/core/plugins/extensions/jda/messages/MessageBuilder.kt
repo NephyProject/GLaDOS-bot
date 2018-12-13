@@ -51,7 +51,6 @@ inline fun Message.edit(operation: EditMessageWrapper.() -> Unit): MessageAction
     return EditMessageWrapper(this).apply(operation).build()
 }
 
-// TODO
 inline fun Message.prompt(operation: PromptBuilder.() -> Unit) {
     PromptBuilder(textChannel, member).apply(operation)
 }

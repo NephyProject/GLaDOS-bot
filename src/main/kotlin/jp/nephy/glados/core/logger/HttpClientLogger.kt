@@ -1,11 +1,13 @@
 package jp.nephy.glados.core.logger
 
 import io.ktor.client.HttpClient
+import io.ktor.client.HttpClientConfig
 import io.ktor.client.features.HttpClientFeature
-import io.ktor.client.features.observer.ResponseObserver
+import io.ktor.client.response.HttpReceivePipeline
 import io.ktor.client.response.HttpResponse
 import io.ktor.http.charset
 import io.ktor.http.content.OutgoingContent
+import io.ktor.http.contentLength
 import io.ktor.http.contentType
 import io.ktor.util.AttributeKey
 import jp.nephy.glados.GLaDOS
@@ -28,7 +30,7 @@ class HttpClientLogger(private val config: Config) {
 
         log {
             if (LogCategory.Summary in config.categories) {
-                appendln("${response.version} ${response.status.value} ${response.call.request.method.value} ${response.call.request.url}")
+                appendln("${response.status.value} ${response.status.description}: ${response.version} ${response.call.request.method.value} ${response.call.request.url}")
             }
 
             if (LogCategory.RequestHeader in config.categories) {
@@ -62,6 +64,8 @@ class HttpClientLogger(private val config: Config) {
                 appendln(text.ifBlank { "    (Empty)" })
             }
 
+            appendln()
+
             if (LogCategory.ResponseHeader in config.categories) {
                 appendln("Response Headers:")
                 for ((key, values) in response.headers.entries()) {
@@ -70,13 +74,9 @@ class HttpClientLogger(private val config: Config) {
             }
 
             if (LogCategory.ResponseBody in config.categories) {
-                val content = response.content
                 val contentType = response.contentType()
 
-                val text = content.readRemaining().readText(charset = contentType?.charset() ?: Charsets.UTF_8)
-
-                appendln("Response Body: $contentType")
-                appendln(text.ifBlank { "    (Empty)" })
+                appendln("Response Body: $contentType / Length = ${response.contentLength()}")
             }
         }
     }
@@ -111,9 +111,13 @@ class HttpClientLogger(private val config: Config) {
         }
 
         override fun install(feature: HttpClientLogger, scope: HttpClient) {
-            ResponseObserver.install(ResponseObserver {
-                feature.logResponse(it)
-            }, scope)
+            scope.receivePipeline.intercept(HttpReceivePipeline.After) { response ->
+                launch {
+                    feature.logResponse(response)
+                }
+
+                proceedWith(context.response)
+            }
         }
     }
 }
@@ -124,4 +128,19 @@ enum class LogCategory {
     RequestHeader, RequestBody,
 
     ResponseHeader, ResponseBody
+}
+
+fun HttpClientConfig<*>.installDefaultLogger() {
+    install(HttpClientLogger) {
+        if (GLaDOS.isDebugMode) {
+            all()
+        } else {
+            of(LogCategory.Summary)
+        }
+
+        val logger = SlackLogger("GLaDOS.HttpClient", "#glados-http-client")
+        onMessage {
+            logger.info { it }
+        }
+    }
 }

@@ -1007,13 +1007,21 @@ object SubscriptionClient {
 
                 private fun PipelineContext<Unit, ApplicationCall>.callLogging(logger: SlackLogger) {
                     val httpStatus = call.response.status() ?: HttpStatusCode.OK
-                    val userAgent = call.request.userAgent().orEmpty()
+                    val userAgent = call.request.userAgent()
                     val remoteHost = call.request.origin.remoteHost
-                    if (GLaDOS.config.web.ignoreUserAgents.any { it in userAgent } || GLaDOS.config.web.ignoreIpAddressRanges.any { it in remoteHost }) {
+                    if (!userAgent.isNullOrBlank() && GLaDOS.config.web.ignoreUserAgents.any { it in userAgent } || GLaDOS.config.web.ignoreIpAddressRanges.any { it in remoteHost }) {
                         return
                     }
 
-                    logger.info { "${httpStatus.value} ${httpStatus.description}: ${call.request.origin.version} ${call.request.origin.method.value} ${call.request.url}\n<- $remoteHost ($userAgent)" }
+                    logger.info {
+                        buildString {
+                            appendln("${httpStatus.value} ${httpStatus.description}: ${call.request.origin.version} ${call.request.origin.method.value} ${call.request.url}")
+                            append("<- $remoteHost")
+                            if (!userAgent.isNullOrBlank()) {
+                                append(" ($userAgent)")
+                            }
+                        }
+                    }
                 }
             }
         }
