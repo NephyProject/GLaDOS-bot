@@ -1,3 +1,5 @@
+@file:Suppress("OVERRIDE_BY_INLINE")
+
 package jp.nephy.glados.core.plugins.extensions.jda.messages
 
 import jp.nephy.glados.core.plugins.extensions.jda.launch
@@ -8,18 +10,18 @@ import net.dv8tion.jda.core.entities.MessageChannel
 import net.dv8tion.jda.core.entities.MessageEmbed
 import net.dv8tion.jda.core.requests.restaction.MessageAction
 
-class SendMessageWrapper(private val channel: MessageChannel, private val mention: IMentionable? = null): MessageWrapper {
-    private var message: Message? = null
-    override fun text(operation: MessageBuilder.() -> Unit) {
-        message = MessageBuilder().apply(operation).apply {
+class SendMessageWrapper(val channel: MessageChannel, val mention: IMentionable? = null): MessageWrapper {
+    var text: Message? = null
+    override inline fun text(operation: MessageBuilder.() -> Unit) {
+        text = MessageBuilder().apply(operation).apply {
             if (mention != null) {
                 append(mention)
             }
         }.build()
     }
 
-    private var embed: MessageEmbed? = null
-    override fun embed(operation: EmbedBuilder.() -> Unit) {
+    var embed: MessageEmbed? = null
+    override inline fun embed(operation: EmbedBuilder.() -> Unit) {
         embed = EmbedBuilder().apply(operation).apply {
             if (mention != null) {
                 asMention(mention)
@@ -29,9 +31,9 @@ class SendMessageWrapper(private val channel: MessageChannel, private val mentio
 
     override fun build(): MessageAction {
         return when {
-            message != null -> {
+            text != null -> {
                 channel.sendTyping().launch()
-                channel.sendMessage(message)
+                channel.sendMessage(text)
             }
             embed != null -> {
                 channel.sendTyping().launch()
