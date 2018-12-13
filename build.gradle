@@ -66,9 +66,6 @@ dependencies {
     compile "jp.nephy:jsonkt:4.1"
     compile "org.jetbrains.kotlinx:kotlinx-serialization-runtime:0.9.1"
 
-    /* Database */
-    compile "org.litote.kmongo:kmongo:3.9.0"
-
     /* Web Server & Client */
     compile "io.ktor:ktor-server-netty:$ktor_version"
     compile "io.ktor:ktor-html-builder:$ktor_version"
@@ -83,7 +80,6 @@ dependencies {
     compile "ch.qos.logback:logback-core:1.2.3"
     compile "ch.qos.logback:logback-classic:1.2.3"
     compile "org.fusesource.jansi:jansi:1.17.1"
-    compile "org.openjdk.jol:jol-core:0.9"
 }
 
 subprojects {
