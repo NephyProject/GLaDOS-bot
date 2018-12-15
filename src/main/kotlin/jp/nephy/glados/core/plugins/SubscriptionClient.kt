@@ -300,7 +300,7 @@ object SubscriptionClient {
                         logger.warn { "\"$text\": オーナーではないため実行されませんでした。 (${commandEvent.authorName})" }
                     }
                     else -> {
-                        if (subscription.isExperimental) {
+                        return if (subscription.isExperimental) {
                             commandEvent.message.prompt {
                                 emoji<ExperimentalConsent, ExperimentalConsent>(
                                     title = "`${commandEvent.command.primaryCommandSyntax}`", description = "⚠ この機能は現在 試験中(Experimental) です。予期しない不具合が発生する可能性がありますが, ご理解の上ご利用ください。", color = HexColor.Change, timeoutSec = 30
@@ -310,7 +310,7 @@ object SubscriptionClient {
                                             m.delete().launch()
 
                                             subscription.invoke(commandEvent)
-                                            subscription.logger.trace { "同意したので実行されました。(${event.guild?.name})" }
+                                            subscription.logger.info { "同意したので実行されました。(${event.guild?.name})" }
                                         } else {
                                             m.edit {
                                                 embed {
@@ -334,7 +334,7 @@ object SubscriptionClient {
         }
 
         private enum class ExperimentalConsent(override val emoji: String, override val friendlyName: String): PromptEmoji {
-            Agree("✅", "同意"), Disagree("❌", "キャンセル")
+            Agree("✅", "OK"), Disagree("❌", "キャンセル")
         }
 
         private fun Subscription.Command.satisfyChannelTypeRequirement(type: ChannelType): Boolean {
@@ -345,23 +345,24 @@ object SubscriptionClient {
             return targetChannelType != Plugin.Command.TargetChannelType.BotChannel || (channel is TextChannel && channel.guild.config?.textChannel("bot") == channel)
         }
 
-        private fun Subscription.Command.parseArgs(text: String): String? {
-            return when (casePolicy) {
+        private fun Subscription.Command.parseArgs(text: String): List<String>? {
+            val split = text.split(spaceRegex)
+            val syntax = split.firstOrNull() ?: return null
+
+            val matched = when (casePolicy) {
                 Plugin.Command.CasePolicy.Strict -> {
-                    commandSyntaxes.asSequence().filter {
-                        text.split(spaceRegex).first() == it
-                    }.sortedByDescending { it.length }.map {
-                        text.removePrefix(it).trim()
-                    }.firstOrNull()
+                    commandSyntaxes.any { it == syntax }
                 }
                 Plugin.Command.CasePolicy.Ignore -> {
-                    commandSyntaxes.asSequence().filter {
-                        text.split(spaceRegex).first().equals(it, true)
-                    }.sortedByDescending { it.length }.map {
-                        "^$it".toRegex(RegexOption.IGNORE_CASE).replace(text, "")
-                    }.firstOrNull()
+                    commandSyntaxes.any { it.equals(syntax, true) }
                 }
-            }?.trim()
+            }
+
+            if (!matched) {
+                return null
+            }
+
+            return split.drop(1)
         }
 
         private fun Subscription.Command.satisfyArgumentsRequirement(args: List<String>): Boolean {
