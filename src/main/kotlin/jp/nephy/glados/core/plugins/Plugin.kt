@@ -6,7 +6,6 @@ import io.ktor.util.pipeline.PipelineContext
 import jp.nephy.glados.GLaDOS
 import jp.nephy.glados.core.config.GLaDOSConfig
 import jp.nephy.glados.core.logger.SlackLogger
-import jp.nephy.glados.core.plugins.SubscriptionClient.Command.spaceRegex
 import jp.nephy.glados.core.plugins.extensions.jda.displayName
 import jp.nephy.glados.core.plugins.extensions.jda.fullName
 import jp.nephy.glados.core.plugins.extensions.web.meta.SitemapUpdateFrequency
@@ -96,20 +95,33 @@ abstract class Plugin(
             Anytime, WhileInAnyVoiceChannel, WhileInSameVoiceChannel
         }
 
-        data class Event(
-            val args: String, val command: Subscription.Command, val message: Message, val author: User, val member: Member?, val guild: Guild?, val textChannel: TextChannel?, val channel: MessageChannel, private val _jda: JDA, private val _responseNumber: Long
+        class Event(
+            val argList: List<String>, val command: Subscription.Command, val message: Message, val author: User, val member: Member?, val guild: Guild?, val textChannel: TextChannel?, val channel: MessageChannel, _jda: JDA, _responseNumber: Long
         ): net.dv8tion.jda.core.events.Event(_jda, _responseNumber) {
-            constructor(args: String, command: Subscription.Command, event: MessageReceivedEvent): this(args, command, event.message, event.author, event.member, event.guild, event.textChannel, event.channel, event.jda, event.responseNumber)
-            constructor(args: String, command: Subscription.Command, event: MessageUpdateEvent): this(args, command, event.message, event.author, event.member, event.guild, event.textChannel, event.channel, event.jda, event.responseNumber)
+            constructor(argList: List<String>, command: Subscription.Command, event: MessageReceivedEvent): this(argList, command, event.message, event.author, event.member, event.guild, event.textChannel, event.channel, event.jda, event.responseNumber)
+            constructor(argList: List<String>, command: Subscription.Command, event: MessageUpdateEvent): this(argList, command, event.message, event.author, event.member, event.guild, event.textChannel, event.channel, event.jda, event.responseNumber)
 
-            val argList: List<String>
-                get() = if (args.isNotBlank()) {
-                    args.split(spaceRegex)
-                } else {
-                    emptyList()
-                }
+            val args: String
+                get() = argList.joinToString(" ")
             val authorName: String
                 get() = member?.fullName ?: author.displayName
+
+            val first: String
+                get() = argList[0]
+            operator fun component1() = first
+
+            val second: String
+                get() = argList[1]
+            operator fun component2() = second
+
+            operator fun component3() = argList[2]
+            operator fun component4() = argList[3]
+            operator fun component5() = argList[4]
+            operator fun component6() = argList[5]
+            operator fun component7() = argList[6]
+            operator fun component8() = argList[7]
+            operator fun component9() = argList[8]
+            operator fun component10() = argList[9]
         }
     }
 
