@@ -1,11 +1,5 @@
 package jp.nephy.glados.core.plugins.extensions.jda.messages.prompt
 
-enum class YesNoEmoji(override val emoji: String): PromptEmoji {
-    Yes("👌"), No("👋");
-
-    override val friendlyName: String
-        get() = when (this) {
-            Yes -> "はい"
-            No -> "いいえ"
-        }
+enum class YesNoEmoji(override val symbol: String, override val promptTitle: String, override val promptDescription: String): EmojiEnum {
+    Yes("👌", "はい", "Yes"), No("👋", "いいえ", "No")
 }

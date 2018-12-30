@@ -1,14 +1,13 @@
+@file:Suppress("UNUSED")
+
 package jp.nephy.glados.core.plugins.extensions.jda.messages
 
-import com.jagrosh.jdautilities.commons.waiter.EventWaiter
-import jp.nephy.glados.GLaDOS
 import jp.nephy.glados.core.plugins.Plugin
-import jp.nephy.glados.core.plugins.extensions.jda.messages.prompt.PromptBuilder
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import jp.nephy.glados.core.plugins.extensions.jda.messages.prompt.EmojiEnum
+import jp.nephy.glados.core.plugins.extensions.jda.messages.prompt.EmojiPrompt
+import jp.nephy.glados.core.plugins.extensions.jda.messages.prompt.ListPrompt
+import jp.nephy.glados.core.plugins.extensions.jda.messages.prompt.PromptEnum
 import net.dv8tion.jda.core.entities.*
-import net.dv8tion.jda.core.events.Event
 import net.dv8tion.jda.core.events.message.MessageReceivedEvent
 import net.dv8tion.jda.core.events.message.MessageUpdateEvent
 import net.dv8tion.jda.core.requests.restaction.MessageAction
@@ -31,6 +30,7 @@ inline fun Message.reply(operation: SendMessageWrapper.() -> Unit): MessageActio
     return SendMessageWrapper(channel, author).apply(operation).build()
 }
 
+// TODO
 inline fun MessageChannel.reply(to: IMentionable, operation: SendMessageWrapper.() -> Unit): MessageAction {
     return SendMessageWrapper(this, to).apply(operation).build()
 }
@@ -51,29 +51,63 @@ inline fun Message.edit(operation: EditMessageWrapper.() -> Unit): MessageAction
     return EditMessageWrapper(this).apply(operation).build()
 }
 
-inline fun Message.prompt(operation: PromptBuilder.() -> Unit) {
-    PromptBuilder(textChannel, member).apply(operation)
+/* Prompt */
+@Suppress("ResultIsResult")
+suspend inline fun Message.emojiPrompt(noinline operation: EmojiPrompt.Builder<EmojiPrompt.Emoji>.() -> Unit): Result<EmojiPrompt.PromptResult<EmojiPrompt.Emoji>> {
+    return textChannel.emojiPrompt(author, operation)
 }
 
-inline fun TextChannel.prompt(to: Member, operation: PromptBuilder.() -> Unit) {
-    PromptBuilder(this, to).apply(operation)
+@Suppress("ResultIsResult")
+suspend inline fun TextChannel.emojiPrompt(to: Member, noinline operation: EmojiPrompt.Builder<EmojiPrompt.Emoji>.() -> Unit): Result<EmojiPrompt.PromptResult<EmojiPrompt.Emoji>> {
+    return emojiPrompt(to.user, operation)
 }
 
-inline fun <reified T: Event> EventWaiter.wait(noinline condition: T.() -> Boolean = { true }, timeout: Long? = null, noinline whenTimeout: () -> Unit = { }, noinline operation: T.() -> Unit) {
-    var stop = false
-    if (timeout != null) {
-        GlobalScope.launch(GLaDOS.dispatcher) {
-            delay(timeout)
-            stop = true
-            whenTimeout()
-        }
-    }
+@Suppress("ResultIsResult")
+suspend inline fun TextChannel.emojiPrompt(to: User, noinline operation: EmojiPrompt.Builder<EmojiPrompt.Emoji>.() -> Unit): Result<EmojiPrompt.PromptResult<EmojiPrompt.Emoji>> {
+    return EmojiPrompt.create(this, to, builder = operation)
+}
 
-    waitForEvent(T::class.java, { !stop && condition(it) }) {
-        if (stop) {
-            return@waitForEvent
-        }
+@Suppress("ResultIsResult")
+suspend inline fun <reified E: Enum<out EmojiEnum>> Message.emojiEnumPrompt(noinline operation: EmojiPrompt.Builder<E>.() -> Unit): Result<EmojiPrompt.PromptResult<E>> {
+    return textChannel.emojiEnumPrompt(author, operation)
+}
 
-        operation(it)
-    }
+@Suppress("ResultIsResult")
+suspend inline fun <reified E: Enum<out EmojiEnum>> TextChannel.emojiEnumPrompt(to: Member, noinline operation: EmojiPrompt.Builder<E>.() -> Unit): Result<EmojiPrompt.PromptResult<E>> {
+    return emojiEnumPrompt(to.user, operation)
+}
+
+@Suppress("ResultIsResult")
+suspend inline fun <reified E: Enum<out EmojiEnum>> TextChannel.emojiEnumPrompt(to: User, noinline operation: EmojiPrompt.Builder<E>.() -> Unit): Result<EmojiPrompt.PromptResult<E>> {
+    return EmojiPrompt.create(this, to, E::class.java.enumConstants.toList(), operation)
+}
+
+@Suppress("ResultIsResult")
+suspend inline fun <T> Message.itemPrompt(items: List<T>, noinline operation: ListPrompt.Builder<T>.() -> Unit): Result<ListPrompt.PromptResult<T>> {
+    return textChannel.itemPrompt(author, items, operation)
+}
+
+@Suppress("ResultIsResult")
+suspend inline fun <T> TextChannel.itemPrompt(to: Member, items: List<T>, noinline operation: ListPrompt.Builder<T>.() -> Unit): Result<ListPrompt.PromptResult<T>> {
+    return itemPrompt(to.user, items, operation)
+}
+
+@Suppress("ResultIsResult")
+suspend inline fun <T> TextChannel.itemPrompt(to: User, items: List<T>, noinline operation: ListPrompt.Builder<T>.() -> Unit): Result<ListPrompt.PromptResult<T>> {
+    return ListPrompt.create(this, to, items, operation)
+}
+
+@Suppress("ResultIsResult")
+suspend inline fun <reified E: Enum<out PromptEnum>> Message.enumPrompt(noinline operation: ListPrompt.Builder<E>.() -> Unit): Result<ListPrompt.PromptResult<E>> {
+    return textChannel.itemPrompt(author, E::class.java.enumConstants.toList(), operation)
+}
+
+@Suppress("ResultIsResult")
+suspend inline fun <reified E: Enum<out PromptEnum>> TextChannel.enumPrompt(to: Member, noinline operation: ListPrompt.Builder<E>.() -> Unit): Result<ListPrompt.PromptResult<E>> {
+    return itemPrompt(to.user, E::class.java.enumConstants.toList(), operation)
+}
+
+@Suppress("ResultIsResult")
+suspend inline fun <reified E: Enum<out PromptEnum>> TextChannel.enumPrompt(to: User, noinline operation: ListPrompt.Builder<E>.() -> Unit): Result<ListPrompt.PromptResult<E>> {
+    return ListPrompt.create(this, to, E::class.java.enumConstants.toList(), operation)
 }

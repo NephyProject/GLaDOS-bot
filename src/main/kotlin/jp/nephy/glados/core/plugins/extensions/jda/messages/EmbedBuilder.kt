@@ -59,7 +59,7 @@ class EmbedBuilder {
     }
 
     fun build(): MessageEmbed {
-        builder.setDescription(descriptionRaw.toString())
+        builder.setDescription(descriptionRaw.toString().trimEnd())
         return builder.build()
     }
 }

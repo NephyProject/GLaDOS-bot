@@ -37,9 +37,8 @@ import jp.nephy.glados.core.plugins.extensions.hasAdminCapability
 import jp.nephy.glados.core.plugins.extensions.isGLaDOSOwner
 import jp.nephy.glados.core.plugins.extensions.jda.*
 import jp.nephy.glados.core.plugins.extensions.jda.messages.HexColor
-import jp.nephy.glados.core.plugins.extensions.jda.messages.edit
-import jp.nephy.glados.core.plugins.extensions.jda.messages.prompt
-import jp.nephy.glados.core.plugins.extensions.jda.messages.prompt.PromptEmoji
+import jp.nephy.glados.core.plugins.extensions.jda.messages.emojiEnumPrompt
+import jp.nephy.glados.core.plugins.extensions.jda.messages.prompt.EmojiEnum
 import jp.nephy.glados.core.plugins.extensions.jda.messages.reply
 import jp.nephy.glados.core.plugins.extensions.resourceFile
 import jp.nephy.glados.core.plugins.extensions.web.effectiveHost
@@ -86,6 +85,8 @@ object SubscriptionClient {
                     it.sortByPriority()
                 }
             }
+
+            addEventListener(DiscordEventWaiter)
         }
     }
 
@@ -300,40 +301,39 @@ object SubscriptionClient {
                         logger.warn { "\"$text\": オーナーではないため実行されませんでした。 (${commandEvent.authorName})" }
                     }
                     else -> {
-                        return if (subscription.isExperimental) {
-                            commandEvent.message.prompt {
-                                emoji<ExperimentalConsent, ExperimentalConsent>(
-                                    title = "`${commandEvent.command.primaryCommandSyntax}`", description = "⚠ この機能は現在 試験中(Experimental) です。予期しない不具合が発生する可能性がありますが, ご理解の上ご利用ください。", color = HexColor.Change, timeoutSec = 30
-                                ) { consent, m, _ ->
-                                    launch {
-                                        if (consent == ExperimentalConsent.Agree) {
-                                            m.delete().launch()
-
-                                            subscription.invoke(commandEvent)
-                                            subscription.logger.info { "同意したので実行されました。(${event.guild?.name})" }
-                                        } else {
-                                            m.edit {
-                                                embed {
-                                                    title("`${commandEvent.command.primaryCommandSyntax}`")
-                                                    description { "キャンセルしました。" }
-                                                    color(HexColor.Bad)
-                                                    timestamp()
-                                                }
-                                            }.awaitAndDelete(15, TimeUnit.SECONDS)
+                        if (subscription.isExperimental) {
+                            commandEvent.message.emojiEnumPrompt<ExperimentalConsent> {
+                                title("`${commandEvent.command.primaryCommandSyntax}`")
+                                description { "⚠ この機能は現在 試験中(Experimental) です。予期しない不具合が発生する可能性がありますが, ご理解の上ご利用ください。" }
+                                color(HexColor.Change)
+                                timeout(30, TimeUnit.SECONDS)
+                            }.onSuccess {
+                                if (it.selected == ExperimentalConsent.Agree) {
+                                    subscription.invoke(commandEvent)
+                                    subscription.logger.info { "同意したので実行されました。(${event.guild?.name})" }
+                                } else {
+                                    commandEvent.message.reply {
+                                        embed {
+                                            title("`${commandEvent.command.primaryCommandSyntax}`")
+                                            description { "キャンセルしました。" }
+                                            color(HexColor.Bad)
+                                            timestamp()
                                         }
-                                    }
+                                    }.awaitAndDelete(15, TimeUnit.SECONDS)
                                 }
                             }
                         } else {
                             subscription.invoke(commandEvent)
                             subscription.logger.trace { "実行されました。(${event.guild?.name})" }
                         }
+
+                        return
                     }
                 }
             }
         }
 
-        private enum class ExperimentalConsent(override val emoji: String, override val friendlyName: String): PromptEmoji {
+        private enum class ExperimentalConsent(override val symbol: String, override val promptTitle: String): EmojiEnum {
             Agree("✅", "OK"), Disagree("❌", "キャンセル")
         }
 
