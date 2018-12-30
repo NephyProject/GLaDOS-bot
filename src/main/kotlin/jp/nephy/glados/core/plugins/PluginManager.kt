@@ -4,7 +4,6 @@ import jp.nephy.glados.GLaDOS
 import jp.nephy.glados.core.logger.SlackLogger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import org.jetbrains.annotations.TestOnly
 import java.io.File
 import java.net.JarURLConnection
 import java.nio.file.*
@@ -36,11 +35,11 @@ object PluginManager: CoroutineScope {
                     launch {
                         try {
                             total++
-                            if (GLaDOS.isDebugMode && it.findAnnotation<Plugin.Testable>() == null) {
+                            if (GLaDOS.isDebugMode && it.findAnnotation<Plugin.TestOnly>() == null && it.findAnnotation<Plugin.Testable>() == null) {
                                 logger.error { "${it.qualifiedName} はテスト可能ではありません。スキップします。" }
                                 error++
                                 return@launch
-                            } else if (!GLaDOS.isDebugMode && it.findAnnotation<TestOnly>() != null) {
+                            } else if (!GLaDOS.isDebugMode && it.findAnnotation<Plugin.TestOnly>() != null) {
                                 logger.info { "${it.qualifiedName} はテスト環境でのみ実行できます。スキップします。" }
                                 return@launch
                             }
@@ -282,7 +281,7 @@ object PluginManager: CoroutineScope {
                     }.loadClasses<T>(jarResourceName, jarPathSeparator)
                 }
                 else -> {
-                    throw UnsupportedOperationException("Unknown procotol: ${root.protocol}")
+                    throw UnsupportedOperationException("Unknown protocol: ${root.protocol}")
                 }
             }.sortedBy { it.canonicalName }.map { it.kotlin }
         }
