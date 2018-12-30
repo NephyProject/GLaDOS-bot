@@ -1,7 +1,7 @@
 package jp.nephy.glados.core.config
 
 import ch.qos.logback.classic.Level
-import io.ktor.client.engine.apache.Apache
+import jp.nephy.glados.GLaDOS
 import jp.nephy.glados.core.logger.SlackLogger
 import jp.nephy.glados.core.logger.installDefaultLogger
 import jp.nephy.jsonkt.*
@@ -105,7 +105,10 @@ data class GLaDOSConfig(override val json: JsonObject): JsonModel {
                         application(ck, cs)
                         token(at, ats)
                     }
-                    httpClient(Apache) {
+                    dispatcher {
+                        coroutineContext = GLaDOS.dispatcher
+                    }
+                    httpClient {
                         installDefaultLogger()
                     }
                     emulationMode = mode

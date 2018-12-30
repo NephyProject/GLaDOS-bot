@@ -1,9 +1,7 @@
 package jp.nephy.glados
 
-import com.jagrosh.jdautilities.commons.waiter.EventWaiter
 import com.sedmelluq.discord.lavaplayer.jdaudp.NativeAudioSendFactory
 import io.ktor.client.HttpClient
-import io.ktor.client.engine.apache.Apache
 import io.ktor.client.features.UserAgent
 import jp.nephy.glados.core.config.ConfigFileWatcher
 import jp.nephy.glados.core.config.GLaDOSConfig
@@ -31,8 +29,6 @@ object GLaDOS {
         private set
     lateinit var httpClient: HttpClient
         private set
-    lateinit var eventWaiter: EventWaiter
-        private set
     lateinit var jda: JDA
         private set
 
@@ -48,7 +44,7 @@ object GLaDOS {
 
         config = GLaDOSConfig.load(isDebugMode)
         dispatcher = newFixedThreadPoolContext(config.parallelism, "GLaDOS-Worker")
-        httpClient = HttpClient(Apache) {
+        httpClient = HttpClient {
             install(UserAgent) {
                 agent = userAgent
             }
@@ -58,14 +54,11 @@ object GLaDOS {
 
         secret = SecretConfig.load()
 
-        eventWaiter = EventWaiter()
         jda = JDABuilder(AccountType.BOT).apply {
             setToken(config.token)
             setGame(Game.playing("Starting..."))
             setEnableShutdownHook(false)
             setAudioSendFactory(NativeAudioSendFactory(5000))
-
-            addEventListener(eventWaiter)
 
             runBlocking {
                 SubscriptionClient.registerClients(this@apply)

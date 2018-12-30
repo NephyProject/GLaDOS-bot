@@ -1,7 +1,6 @@
 package jp.nephy.glados.core.logger
 
 import io.ktor.client.HttpClient
-import io.ktor.client.engine.apache.Apache
 import io.ktor.client.request.post
 import io.ktor.client.response.HttpResponse
 import io.ktor.http.ContentType
@@ -17,7 +16,7 @@ import kotlin.coroutines.CoroutineContext
 
 object SlackWebhook: Closeable, CoroutineScope {
     private val logger = KotlinLogging.logger("GLaDOS.logger.SlackWebhook")
-    private val httpClient = HttpClient(Apache)
+    private val httpClient = HttpClient()
     private val masterJob = Job()
 
     override val coroutineContext: CoroutineContext
