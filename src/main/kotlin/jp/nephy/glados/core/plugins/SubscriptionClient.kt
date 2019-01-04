@@ -6,10 +6,7 @@ import com.codahale.metrics.Slf4jReporter
 import com.sedmelluq.discord.lavaplayer.player.event.*
 import io.ktor.application.*
 import io.ktor.features.*
-import io.ktor.http.ContentType
-import io.ktor.http.HttpHeaders
-import io.ktor.http.HttpMethod
-import io.ktor.http.HttpStatusCode
+import io.ktor.http.*
 import io.ktor.metrics.Metrics
 import io.ktor.request.httpMethod
 import io.ktor.request.path
@@ -25,6 +22,7 @@ import io.ktor.sessions.SessionStorageMemory
 import io.ktor.sessions.Sessions
 import io.ktor.sessions.cookie
 import io.ktor.util.AttributeKey
+import io.ktor.util.KtorExperimentalAPI
 import io.ktor.util.pipeline.PipelineContext
 import jp.nephy.glados.GLaDOS
 import jp.nephy.glados.core.GuildPlayer
@@ -44,8 +42,12 @@ import jp.nephy.glados.core.plugins.extensions.resourceFile
 import jp.nephy.glados.core.plugins.extensions.web.effectiveHost
 import jp.nephy.glados.core.plugins.extensions.web.url
 import jp.nephy.jsonkt.*
-import jp.nephy.penicillin.core.streaming.UserStreamListener
-import jp.nephy.penicillin.models.*
+import jp.nephy.penicillin.core.streaming.listener.UserStreamListener
+import jp.nephy.penicillin.extensions.startBlocking
+import jp.nephy.penicillin.models.DirectMessage
+import jp.nephy.penicillin.models.Status
+import jp.nephy.penicillin.models.Stream
+import jp.nephy.penicillin.models.UserStream
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -58,7 +60,6 @@ import net.dv8tion.jda.core.audio.UserAudio
 import net.dv8tion.jda.core.audio.hooks.ConnectionListener
 import net.dv8tion.jda.core.audio.hooks.ConnectionStatus
 import net.dv8tion.jda.core.entities.*
-import net.dv8tion.jda.core.entities.User
 import net.dv8tion.jda.core.events.Event
 import net.dv8tion.jda.core.events.ReadyEvent
 import net.dv8tion.jda.core.events.message.GenericMessageEvent
@@ -702,127 +703,127 @@ object SubscriptionClient {
                 runEvent(Plugin.Tweetstorm.DirectMessageEvent(account, message))
             }
 
-            override suspend fun onAnyEvent(event: UserStreamEvent) {
+            override suspend fun onAnyEvent(event: UserStream.Event) {
                 runEvent(Plugin.Tweetstorm.StreamEvent(account, event))
             }
 
-            override suspend fun onAnyStatusEvent(event: UserStreamStatusEvent) {
+            override suspend fun onAnyStatusEvent(event: UserStream.StatusEvent) {
                 runEvent(Plugin.Tweetstorm.StreamStatusEvent(account, event))
             }
 
-            override suspend fun onFavorite(event: UserStreamStatusEvent) {
+            override suspend fun onFavorite(event: UserStream.StatusEvent) {
                 runEvent(Plugin.Tweetstorm.FavoriteEvent(account, event))
             }
 
-            override suspend fun onUnfavorite(event: UserStreamStatusEvent) {
+            override suspend fun onUnfavorite(event: UserStream.StatusEvent) {
                 runEvent(Plugin.Tweetstorm.UnfavoriteEvent(account, event))
             }
 
-            override suspend fun onFavoritedRetweet(event: UserStreamStatusEvent) {
+            override suspend fun onFavoritedRetweet(event: UserStream.StatusEvent) {
                 runEvent(Plugin.Tweetstorm.FavoritedRetweetEvent(account, event))
             }
 
-            override suspend fun onRetweetedRetweet(event: UserStreamStatusEvent) {
+            override suspend fun onRetweetedRetweet(event: UserStream.StatusEvent) {
                 runEvent(Plugin.Tweetstorm.RetweetedRetweetEvent(account, event))
             }
 
-            override suspend fun onQuotedTweet(event: UserStreamStatusEvent) {
+            override suspend fun onQuotedTweet(event: UserStream.StatusEvent) {
                 runEvent(Plugin.Tweetstorm.QuotedTweetEvent(account, event))
             }
 
-            override suspend fun onAnyUserEvent(event: UserStreamUserEvent) {
+            override suspend fun onAnyUserEvent(event: UserStream.UserEvent) {
                 runEvent(Plugin.Tweetstorm.StreamUserEvent(account, event))
             }
 
-            override suspend fun onFollow(event: UserStreamUserEvent) {
+            override suspend fun onFollow(event: UserStream.UserEvent) {
                 runEvent(Plugin.Tweetstorm.FollowEvent(account, event))
             }
 
-            override suspend fun onUnfollow(event: UserStreamUserEvent) {
+            override suspend fun onUnfollow(event: UserStream.UserEvent) {
                 runEvent(Plugin.Tweetstorm.UnfollowEvent(account, event))
             }
 
-            override suspend fun onMute(event: UserStreamUserEvent) {
+            override suspend fun onMute(event: UserStream.UserEvent) {
                 runEvent(Plugin.Tweetstorm.MuteEvent(account, event))
             }
 
-            override suspend fun onUnmute(event: UserStreamUserEvent) {
+            override suspend fun onUnmute(event: UserStream.UserEvent) {
                 runEvent(Plugin.Tweetstorm.UnmuteEvent(account, event))
             }
 
-            override suspend fun onBlock(event: UserStreamUserEvent) {
+            override suspend fun onBlock(event: UserStream.UserEvent) {
                 runEvent(Plugin.Tweetstorm.BlockEvent(account, event))
             }
 
-            override suspend fun onUnblock(event: UserStreamUserEvent) {
+            override suspend fun onUnblock(event: UserStream.UserEvent) {
                 runEvent(Plugin.Tweetstorm.UnblockEvent(account, event))
             }
 
-            override suspend fun onUserUpdate(event: UserStreamUserEvent) {
+            override suspend fun onUserUpdate(event: UserStream.UserEvent) {
                 runEvent(Plugin.Tweetstorm.UserUpdateEvent(account, event))
             }
 
-            override suspend fun onAnyListEvent(event: UserStreamListEvent) {
+            override suspend fun onAnyListEvent(event: UserStream.ListEvent) {
                 runEvent(Plugin.Tweetstorm.StreamListEvent(account, event))
             }
 
-            override suspend fun onListCreated(event: UserStreamListEvent) {
+            override suspend fun onListCreated(event: UserStream.ListEvent) {
                 runEvent(Plugin.Tweetstorm.ListCreatedEvent(account, event))
             }
 
-            override suspend fun onListDestroyed(event: UserStreamListEvent) {
+            override suspend fun onListDestroyed(event: UserStream.ListEvent) {
                 runEvent(Plugin.Tweetstorm.ListDestroyedEvent(account, event))
             }
 
-            override suspend fun onListMemberAdded(event: UserStreamListEvent) {
+            override suspend fun onListMemberAdded(event: UserStream.ListEvent) {
                 runEvent(Plugin.Tweetstorm.ListMemberAddedEvent(account, event))
             }
 
-            override suspend fun onListMemberRemoved(event: UserStreamListEvent) {
+            override suspend fun onListMemberRemoved(event: UserStream.ListEvent) {
                 runEvent(Plugin.Tweetstorm.ListMemberRemovedEvent(account, event))
             }
 
-            override suspend fun onListUpdated(event: UserStreamListEvent) {
+            override suspend fun onListUpdated(event: UserStream.ListEvent) {
                 runEvent(Plugin.Tweetstorm.ListUpdatedEvent(account, event))
             }
 
-            override suspend fun onListUserSubscribed(event: UserStreamListEvent) {
+            override suspend fun onListUserSubscribed(event: UserStream.ListEvent) {
                 runEvent(Plugin.Tweetstorm.ListUserSubscribedEvent(account, event))
             }
 
-            override suspend fun onListUserUnsubscribed(event: UserStreamListEvent) {
+            override suspend fun onListUserUnsubscribed(event: UserStream.ListEvent) {
                 runEvent(Plugin.Tweetstorm.ListUserUnsubscribedEvent(account, event))
             }
 
-            override suspend fun onFriends(friends: UserStreamFriends) {
+            override suspend fun onFriends(friends: UserStream.Friends) {
                 runEvent(Plugin.Tweetstorm.FriendsEvent(account, friends))
             }
 
-            override suspend fun onDelete(delete: StreamDelete) {
+            override suspend fun onDelete(delete: Stream.Delete) {
                 runEvent(Plugin.Tweetstorm.DeleteEvent(account, delete))
             }
 
-            override suspend fun onDisconnectMessage(disconnect: UserStreamDisconnect) {
+            override suspend fun onDisconnectMessage(disconnect: UserStream.Disconnect) {
                 runEvent(Plugin.Tweetstorm.DisconnectMessageEvent(account, disconnect))
             }
 
-            override suspend fun onLimit(limit: UserStreamLimit) {
+            override suspend fun onLimit(limit: UserStream.Limit) {
                 runEvent(Plugin.Tweetstorm.LimitEvent(account, limit))
             }
 
-            override suspend fun onScrubGeo(scrubGeo: UserStreamScrubGeo) {
+            override suspend fun onScrubGeo(scrubGeo: UserStream.ScrubGeo) {
                 runEvent(Plugin.Tweetstorm.ScrubGeoEvent(account, scrubGeo))
             }
 
-            override suspend fun onStatusWithheld(withheld: UserStreamStatusWithheld) {
+            override suspend fun onStatusWithheld(withheld: UserStream.StatusWithheld) {
                 runEvent(Plugin.Tweetstorm.StatusWithheldEvent(account, withheld))
             }
 
-            override suspend fun onUserWithheld(withheld: UserStreamUserWithheld) {
+            override suspend fun onUserWithheld(withheld: UserStream.UserWithheld) {
                 runEvent(Plugin.Tweetstorm.UserWithheldEvent(account, withheld))
             }
 
-            override suspend fun onWarning(warning: UserStreamWarning) {
+            override suspend fun onWarning(warning: UserStream.Warning) {
                 runEvent(Plugin.Tweetstorm.WarningEvent(account, warning))
             }
 
@@ -978,9 +979,10 @@ object SubscriptionClient {
                 private val accessLogger = SlackLogger("GLaDOS.Web.Access", channelName = "#glados-web")
                 private val accessStaticLogger = SlackLogger("GLaDOS.Web.AccessStatic", channelName = "#glados-web-static")
 
+                @UseExperimental(KtorExperimentalAPI::class)
                 suspend fun PipelineContext<Unit, ApplicationCall>.handleRequest() {
                     val host = call.request.effectiveHost
-                    val path = call.request.path().removePrefix("/").removeSuffix("/")
+                    val path = call.request.path().removePrefix("/").removeSuffix("/").decodeURLPart()
 
                     if (call.request.httpMethod == HttpMethod.Get) {
                         val searchPaths = listOf(

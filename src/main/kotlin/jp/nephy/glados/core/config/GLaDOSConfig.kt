@@ -8,6 +8,7 @@ import jp.nephy.jsonkt.*
 import jp.nephy.jsonkt.delegation.*
 import jp.nephy.penicillin.PenicillinClient
 import jp.nephy.penicillin.core.emulation.EmulationMode
+import jp.nephy.penicillin.extensions.complete
 import kotlinx.serialization.json.JsonObject
 import mu.KotlinLogging
 import java.nio.file.Path
