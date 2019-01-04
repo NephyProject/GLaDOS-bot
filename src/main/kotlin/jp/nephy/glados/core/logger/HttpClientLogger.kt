@@ -30,7 +30,7 @@ class HttpClientLogger(private val config: Config) {
 
         log {
             if (LogCategory.Summary in config.categories) {
-                appendln("${response.status.value} ${response.status.description}: ${response.version} ${response.call.request.method.value} ${response.call.request.url}")
+                appendln("${response.status.value} ${response.status.description}: ${response.version} ${response.call.request.method.value} `${response.call.request.url}`")
             }
 
             if (LogCategory.RequestHeader in config.categories) {
