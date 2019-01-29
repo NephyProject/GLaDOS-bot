@@ -3,7 +3,6 @@
 package jp.nephy.glados.core.plugins.extensions.web
 
 import jp.nephy.glados.core.plugins.Plugin
-import kotlinx.serialization.json.toBooleanStrictOrNull
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
 
@@ -11,13 +10,13 @@ import kotlin.reflect.KProperty
 
 fun Plugin.Web.AccessEvent.booleanQuery(key: String? = null, default: () -> Boolean) = object: ReadOnlyProperty<Any?, Boolean> {
     override fun getValue(thisRef: Any?, property: KProperty<*>): Boolean {
-        return this@booleanQuery.call.request.queryParameters[key ?: property.name]?.toBooleanStrictOrNull() ?: default()
+        return this@booleanQuery.call.request.queryParameters[key ?: property.name]?.toBoolean() ?: default()
     }
 }
 
 fun Plugin.Web.AccessEvent.booleanQuery(key: String? = null) = object: ReadOnlyProperty<Any?, Boolean?> {
     override fun getValue(thisRef: Any?, property: KProperty<*>): Boolean? {
-        return this@booleanQuery.call.request.queryParameters[key ?: property.name]?.toBooleanStrictOrNull()
+        return this@booleanQuery.call.request.queryParameters[key ?: property.name]?.toBoolean()
     }
 }
 
@@ -85,13 +84,13 @@ fun Plugin.Web.AccessEvent.query(key: String? = null) = object: ReadOnlyProperty
 
 fun Plugin.Web.AccessEvent.booleanFragment(key: String? = null) = object: ReadOnlyProperty<Any?, Boolean?> {
     override fun getValue(thisRef: Any?, property: KProperty<*>): Boolean? {
-        return fragments[key ?: property.name]?.toBooleanStrictOrNull()
+        return fragments[key ?: property.name]?.toBoolean()
     }
 }
 
 fun Plugin.Web.AccessEvent.booleanFragment(key: String? = null, default: () -> Boolean) = object: ReadOnlyProperty<Any?, Boolean> {
     override fun getValue(thisRef: Any?, property: KProperty<*>): Boolean {
-        return fragments[key ?: property.name]?.toBooleanStrictOrNull() ?: default()
+        return fragments[key ?: property.name]?.toBoolean() ?: default()
     }
 }
 

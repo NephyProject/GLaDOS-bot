@@ -13,7 +13,6 @@ import jp.nephy.jsonkt.*
 import jp.nephy.penicillin.models.DirectMessage
 import jp.nephy.penicillin.models.Status
 import jp.nephy.penicillin.models.Stream
-import jp.nephy.penicillin.models.UserStream
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.io.core.Closeable
@@ -152,68 +151,10 @@ abstract class Plugin(
         data class StatusEvent(override val account: GLaDOSConfig.Accounts.TwitterAccount, val status: Status): Event
 
         data class DirectMessageEvent(override val account: GLaDOSConfig.Accounts.TwitterAccount, val message: DirectMessage): Event
-
-        data class StreamEvent(override val account: GLaDOSConfig.Accounts.TwitterAccount, val event: UserStream.Event): Event
-
-        data class StreamStatusEvent(override val account: GLaDOSConfig.Accounts.TwitterAccount, val event: UserStream.StatusEvent): Event
-
-        data class FavoriteEvent(override val account: GLaDOSConfig.Accounts.TwitterAccount, val event: UserStream.StatusEvent): Event
-
-        data class UnfavoriteEvent(override val account: GLaDOSConfig.Accounts.TwitterAccount, val event: UserStream.StatusEvent): Event
-
-        data class FavoritedRetweetEvent(override val account: GLaDOSConfig.Accounts.TwitterAccount, val event: UserStream.StatusEvent): Event
-
-        data class RetweetedRetweetEvent(override val account: GLaDOSConfig.Accounts.TwitterAccount, val event: UserStream.StatusEvent): Event
-
-        data class QuotedTweetEvent(override val account: GLaDOSConfig.Accounts.TwitterAccount, val event: UserStream.StatusEvent): Event
-
-        data class StreamUserEvent(override val account: GLaDOSConfig.Accounts.TwitterAccount, val event: UserStream.UserEvent): Event
-
-        data class FollowEvent(override val account: GLaDOSConfig.Accounts.TwitterAccount, val event: UserStream.UserEvent): Event
-
-        data class UnfollowEvent(override val account: GLaDOSConfig.Accounts.TwitterAccount, val event: UserStream.UserEvent): Event
-
-        data class MuteEvent(override val account: GLaDOSConfig.Accounts.TwitterAccount, val event: UserStream.UserEvent): Event
-
-        data class UnmuteEvent(override val account: GLaDOSConfig.Accounts.TwitterAccount, val event: UserStream.UserEvent): Event
-
-        data class BlockEvent(override val account: GLaDOSConfig.Accounts.TwitterAccount, val event: UserStream.UserEvent): Event
-
-        data class UnblockEvent(override val account: GLaDOSConfig.Accounts.TwitterAccount, val event: UserStream.UserEvent): Event
-
-        data class UserUpdateEvent(override val account: GLaDOSConfig.Accounts.TwitterAccount, val event: UserStream.UserEvent): Event
-
-        data class StreamListEvent(override val account: GLaDOSConfig.Accounts.TwitterAccount, val event: UserStream.ListEvent): Event
-
-        data class ListCreatedEvent(override val account: GLaDOSConfig.Accounts.TwitterAccount, val event: UserStream.ListEvent): Event
-
-        data class ListDestroyedEvent(override val account: GLaDOSConfig.Accounts.TwitterAccount, val event: UserStream.ListEvent): Event
-
-        data class ListMemberAddedEvent(override val account: GLaDOSConfig.Accounts.TwitterAccount, val event: UserStream.ListEvent): Event
-
-        data class ListMemberRemovedEvent(override val account: GLaDOSConfig.Accounts.TwitterAccount, val event: UserStream.ListEvent): Event
-
-        data class ListUpdatedEvent(override val account: GLaDOSConfig.Accounts.TwitterAccount, val event: UserStream.ListEvent): Event
-
-        data class ListUserSubscribedEvent(override val account: GLaDOSConfig.Accounts.TwitterAccount, val event: UserStream.ListEvent): Event
-
-        data class ListUserUnsubscribedEvent(override val account: GLaDOSConfig.Accounts.TwitterAccount, val event: UserStream.ListEvent): Event
-
-        data class FriendsEvent(override val account: GLaDOSConfig.Accounts.TwitterAccount, val friends: UserStream.Friends): Event
+        
+        data class FriendsEvent(override val account: GLaDOSConfig.Accounts.TwitterAccount, val friends: Stream.Friends): Event
 
         data class DeleteEvent(override val account: GLaDOSConfig.Accounts.TwitterAccount, val delete: Stream.Delete): Event
-
-        data class DisconnectMessageEvent(override val account: GLaDOSConfig.Accounts.TwitterAccount, val disconnect: UserStream.Disconnect): Event
-
-        data class LimitEvent(override val account: GLaDOSConfig.Accounts.TwitterAccount, val limit: UserStream.Limit): Event
-
-        data class ScrubGeoEvent(override val account: GLaDOSConfig.Accounts.TwitterAccount, val scrubGeo: UserStream.ScrubGeo): Event
-
-        data class StatusWithheldEvent(override val account: GLaDOSConfig.Accounts.TwitterAccount, val withheld: UserStream.StatusWithheld): Event
-
-        data class UserWithheldEvent(override val account: GLaDOSConfig.Accounts.TwitterAccount, val withheld: UserStream.UserWithheld): Event
-
-        data class WarningEvent(override val account: GLaDOSConfig.Accounts.TwitterAccount, val warning: UserStream.Warning): Event
 
         data class HeartbeatEvent(override val account: GLaDOSConfig.Accounts.TwitterAccount): Event
 

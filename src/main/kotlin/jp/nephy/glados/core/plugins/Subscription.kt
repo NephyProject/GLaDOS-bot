@@ -31,7 +31,6 @@ import kotlin.reflect.jvm.jvmErasure
 import kotlin.system.measureNanoTime
 
 object Subscription {
-    private const val megabytes = 1048576.0
     private const val nano = 1000000.0
 
     abstract class Element<T: Annotation>(protected val annotation: T, private val instance: Plugin, private val function: KFunction<*>) {

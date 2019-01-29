@@ -1,6 +1,8 @@
 package jp.nephy.glados.core.config
 
 import ch.qos.logback.classic.Level
+import io.ktor.client.engine.HttpClientEngineFactory
+import io.ktor.client.engine.apache.Apache
 import jp.nephy.glados.GLaDOS
 import jp.nephy.glados.core.logger.SlackLogger
 import jp.nephy.glados.core.logger.installDefaultLogger
@@ -8,6 +10,10 @@ import jp.nephy.jsonkt.*
 import jp.nephy.jsonkt.delegation.*
 import jp.nephy.penicillin.PenicillinClient
 import jp.nephy.penicillin.core.emulation.EmulationMode
+import jp.nephy.penicillin.core.session.ApiClient
+import jp.nephy.penicillin.core.session.config.*
+import jp.nephy.penicillin.endpoints.account
+import jp.nephy.penicillin.endpoints.account.verifyCredentials
 import jp.nephy.penicillin.extensions.complete
 import kotlinx.serialization.json.JsonObject
 import mu.KotlinLogging
@@ -88,19 +94,19 @@ data class GLaDOSConfig(override val json: JsonObject): JsonModel {
             private val at by string
             private val ats by string
 
-            val client: PenicillinClient
+            val client: ApiClient
                 get() = client()
-            val officialClient: PenicillinClient
+            val officialClient: ApiClient
                 get() = client(EmulationMode.TwitterForiPhone)
             val user by lazy {
                 client.use {
-                    it.account.verifyCredentials().complete().use {
+                    it.account.verifyCredentials.complete().use {
                         it.result
                     }
                 }
             }
 
-            fun client(mode: EmulationMode = EmulationMode.None): PenicillinClient {
+            fun client(mode: EmulationMode = EmulationMode.None, engine: HttpClientEngineFactory<*> = Apache): ApiClient {
                 return PenicillinClient {
                     account {
                         application(ck, cs)
@@ -109,10 +115,12 @@ data class GLaDOSConfig(override val json: JsonObject): JsonModel {
                     dispatcher {
                         coroutineContext = GLaDOS.dispatcher
                     }
-                    httpClient {
+                    httpClient(engine) {
                         installDefaultLogger()
                     }
-                    emulationMode = mode
+                    api {
+                        emulationMode = mode
+                    }
                 }
             }
         }

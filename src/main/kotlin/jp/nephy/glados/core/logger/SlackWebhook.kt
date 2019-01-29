@@ -99,7 +99,7 @@ object SlackWebhook: Closeable, CoroutineScope {
                 override val contentType = ContentType.Application.Json
 
                 override suspend fun writeTo(channel: ByteWriteChannel) {
-                    channel.writeStringUtf8(payload.toJsonString())
+                    channel.writeStringUtf8(payload.toJsonObject().toJsonString())
                 }
             }
         }

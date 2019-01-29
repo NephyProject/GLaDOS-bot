@@ -40,7 +40,7 @@ suspend inline fun ApplicationCall.respondJsonModel(model: JsonModel, status: Ht
 }
 
 suspend inline fun ApplicationCall.respondJsonObject(status: HttpStatusCode? = null, block: () -> Map<String, Any?>) {
-    respondText(block().toJsonString(), ContentType.Application.Json, status)
+    respondText(block().toJsonObject().toJsonString(), ContentType.Application.Json, status)
 }
 
 suspend inline fun ApplicationCall.respondJsonArray(status: HttpStatusCode? = null, block: () -> Iterable<Map<String, Any?>>) {
