@@ -3,11 +3,9 @@
 /build/
 /out/
 
-config.prod.json
-config.dev.json
-config.secret.json
+/*.json
 
-/clients/
+/clients/*.jar
 /plugins/
 /logs/
 /tmp/
