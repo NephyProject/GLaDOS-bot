@@ -1,13 +1,13 @@
-.idea/
-.gradle/
-gradle/
-build/
-out/
+/.idea/
+/.gradle/
+/build/
+/out/
 
 config.prod.json
 config.dev.json
 config.secret.json
 
-logs/
-tmp/
-resources/
+/clients/
+/plugins/
+/logs/
+/tmp/

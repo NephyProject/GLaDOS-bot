@@ -1,3 +1,5 @@
+@file:Suppress("KDocMissingDocumentation")
+
 import java.nio.file.Paths
 
 pluginManagement {
@@ -11,8 +13,8 @@ pluginManagement {
     resolutionStrategy {
         eachPlugin {
             when (requested.id.id) {
-                "kotlinx-serialization" -> {
-                    useModule("org.jetbrains.kotlin:kotlin-serialization:${requested.version}")
+                "org.jetbrains.kotlin.jvm" -> {
+                    useVersion(gradle.rootProject.extra["kotlin.version"] as String)
                 }
                 "com.jfrog.bintray" -> {
                     useModule("com.jfrog.bintray.gradle:gradle-bintray-plugin:${requested.version}")
@@ -41,13 +43,13 @@ fun includeEx(syntax: String) {
     }
 }
 
-includeEx(":glados-core")
+includeEx(":glados-api")
+includeEx(":glados-runtime")
 
+includeEx(":glados-client")
+includeEx(":glados-client:glados-client-system")
 includeEx(":glados-client:glados-client-chrono")
 includeEx(":glados-client:glados-client-loop")
 includeEx(":glados-client:glados-client-discord")
 includeEx(":glados-client:glados-client-twitter")
 includeEx(":glados-client:glados-client-web")
-includeEx(":glados-client")
-
-// include(":plugins")
